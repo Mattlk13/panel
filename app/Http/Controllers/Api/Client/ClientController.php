@@ -7,35 +7,22 @@ use Pterodactyl\Models\Permission;
 use Spatie\QueryBuilder\QueryBuilder;
 use Spatie\QueryBuilder\AllowedFilter;
 use Pterodactyl\Models\Filters\MultiFieldServerFilter;
-use Pterodactyl\Repositories\Eloquent\ServerRepository;
 use Pterodactyl\Transformers\Api\Client\ServerTransformer;
 use Pterodactyl\Http\Requests\Api\Client\GetServersRequest;
 
 class ClientController extends ClientApiController
 {
     /**
-     * @var \Pterodactyl\Repositories\Eloquent\ServerRepository
-     */
-    private $repository;
-
-    /**
      * ClientController constructor.
-     *
-     * @param \Pterodactyl\Repositories\Eloquent\ServerRepository $repository
      */
-    public function __construct(ServerRepository $repository)
+    public function __construct()
     {
         parent::__construct();
-
-        $this->repository = $repository;
     }
 
     /**
-     * Return all of the servers available to the client making the API
+     * Return all the servers available to the client making the API
      * request, including servers the user has access to as a subuser.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Client\GetServersRequest $request
-     * @return array
      */
     public function index(GetServersRequest $request): array
     {
@@ -48,26 +35,27 @@ class ClientController extends ClientApiController
         )->allowedFilters([
             'uuid',
             'name',
+            'description',
             'external_id',
-            AllowedFilter::custom('*', new MultiFieldServerFilter),
+            AllowedFilter::custom('*', new MultiFieldServerFilter()),
         ]);
 
         $type = $request->input('type');
-        // Either return all of the servers the user has access to because they are an admin `?type=admin` or
-        // just return all of the servers the user has access to because they are the owner or a subuser of the
+        // Either return all the servers the user has access to because they are an admin `?type=admin` or
+        // just return all the servers the user has access to because they are the owner or a subuser of the
         // server. If ?type=admin-all is passed all servers on the system will be returned to the user, rather
         // than only servers they can see because they are an admin.
         if (in_array($type, ['admin', 'admin-all'])) {
             // If they aren't an admin but want all the admin servers don't fail the request, just
             // make it a query that will never return any results back.
-            if (! $user->root_admin) {
+            if (!$user->root_admin) {
                 $builder->whereRaw('1 = 2');
             } else {
                 $builder = $type === 'admin-all'
                     ? $builder
                     : $builder->whereNotIn('servers.id', $user->accessibleServers()->pluck('id')->all());
             }
-        } else if ($type === 'owner') {
+        } elseif ($type === 'owner') {
             $builder = $builder->where('servers.owner_id', $user->id);
         } else {
             $builder = $builder->whereIn('servers.id', $user->accessibleServers()->pluck('id')->all());
@@ -79,11 +67,9 @@ class ClientController extends ClientApiController
     }
 
     /**
-     * Returns all of the subuser permissions available on the system.
-     *
-     * @return array
+     * Returns all the subuser permissions available on the system.
      */
-    public function permissions()
+    public function permissions(): array
     {
         return [
             'object' => 'system_permissions',

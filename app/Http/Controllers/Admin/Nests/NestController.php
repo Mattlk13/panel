@@ -1,17 +1,11 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Http\Controllers\Admin\Nests;
 
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 use Prologue\Alerts\AlertsMessageBag;
+use Illuminate\View\Factory as ViewFactory;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Services\Nests\NestUpdateService;
 use Pterodactyl\Services\Nests\NestCreationService;
@@ -22,57 +16,20 @@ use Pterodactyl\Http\Requests\Admin\Nest\StoreNestFormRequest;
 class NestController extends Controller
 {
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    protected $alert;
-
-    /**
-     * @var \Pterodactyl\Services\Nests\NestCreationService
-     */
-    protected $nestCreationService;
-
-    /**
-     * @var \Pterodactyl\Services\Nests\NestDeletionService
-     */
-    protected $nestDeletionService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\NestRepositoryInterface
-     */
-    protected $repository;
-
-    /**
-     * @var \Pterodactyl\Services\Nests\NestUpdateService
-     */
-    protected $nestUpdateService;
-
-    /**
      * NestController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Pterodactyl\Services\Nests\NestCreationService $nestCreationService
-     * @param \Pterodactyl\Services\Nests\NestDeletionService $nestDeletionService
-     * @param \Pterodactyl\Contracts\Repository\NestRepositoryInterface $repository
-     * @param \Pterodactyl\Services\Nests\NestUpdateService $nestUpdateService
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        NestCreationService $nestCreationService,
-        NestDeletionService $nestDeletionService,
-        NestRepositoryInterface $repository,
-        NestUpdateService $nestUpdateService
+        protected AlertsMessageBag $alert,
+        protected NestCreationService $nestCreationService,
+        protected NestDeletionService $nestDeletionService,
+        protected NestRepositoryInterface $repository,
+        protected NestUpdateService $nestUpdateService,
+        protected ViewFactory $view,
     ) {
-        $this->alert = $alert;
-        $this->nestDeletionService = $nestDeletionService;
-        $this->nestCreationService = $nestCreationService;
-        $this->nestUpdateService = $nestUpdateService;
-        $this->repository = $repository;
     }
 
     /**
      * Render nest listing page.
-     *
-     * @return \Illuminate\View\View
      *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
@@ -85,8 +42,6 @@ class NestController extends Controller
 
     /**
      * Render nest creation page.
-     *
-     * @return \Illuminate\View\View
      */
     public function create(): View
     {
@@ -96,24 +51,18 @@ class NestController extends Controller
     /**
      * Handle the storage of a new nest.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\Nest\StoreNestFormRequest $request
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      */
     public function store(StoreNestFormRequest $request): RedirectResponse
     {
         $nest = $this->nestCreationService->handle($request->normalize());
-        $this->alert->success(trans('admin/nests.notices.created', ['name' => $nest->name]))->flash();
+        $this->alert->success(trans('admin/nests.notices.created', ['name' => htmlspecialchars($nest->name)]))->flash();
 
         return redirect()->route('admin.nests.view', $nest->id);
     }
 
     /**
-     * Return details about a nest including all of the eggs and servers per egg.
-     *
-     * @param int $nest
-     * @return \Illuminate\View\View
+     * Return details about a nest including all the eggs and servers per egg.
      *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
@@ -127,10 +76,6 @@ class NestController extends Controller
     /**
      * Handle request to update a nest.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\Nest\StoreNestFormRequest $request
-     * @param int $nest
-     *
-     * @return \Illuminate\Http\RedirectResponse
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
@@ -144,9 +89,6 @@ class NestController extends Controller
 
     /**
      * Handle request to delete a nest.
-     *
-     * @param int $nest
-     * @return \Illuminate\Http\RedirectResponse
      *
      * @throws \Pterodactyl\Exceptions\Service\HasActiveServersException
      */

@@ -16,15 +16,13 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
 
     /**
      * Test that a subuser can be created for a server.
-     *
-     * @param array $permissions
-     * @dataProvider permissionsDataProvider
      */
-    public function testSubuserCanBeCreated($permissions)
+    #[\PHPUnit\Framework\Attributes\DataProvider('permissionsDataProvider')]
+    public function testSubuserCanBeCreated(array $permissions)
     {
         [$user, $server] = $this->generateTestAccount($permissions);
 
-        $response = $this->actingAs($user)->postJson($this->link($server) . "/users", [
+        $response = $this->actingAs($user)->postJson($this->link($server) . '/users', [
             'email' => $email = $this->faker->email,
             'permissions' => [
                 Permission::ACTION_USER_CREATE,
@@ -33,7 +31,7 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
 
         $response->assertOk();
 
-        /** @var \Pterodactyl\Models\User $subuser */
+        /** @var User $subuser */
         $subuser = User::query()->where('email', $email)->firstOrFail();
 
         $response->assertJsonPath('object', Subuser::RESOURCE_NAME);
@@ -50,6 +48,34 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
     }
 
     /**
+     * Test that a newly created user account correctly causes the creation of a user:user.create
+     * activity log entry.
+     */
+    public function testCreatingSubuserWithNewEmailLogsUserCreation()
+    {
+        [$user, $server] = $this->generateTestAccount();
+
+        $response = $this->actingAs($user)->postJson($this->link($server) . '/users', [
+            'email' => $email = $this->faker->email,
+            'permissions' => [
+                Permission::ACTION_USER_CREATE,
+            ],
+        ]);
+
+        $response->assertOk();
+
+        /** @var User $subuser */
+        $subuser = User::query()->where('email', $email)->firstOrFail();
+
+        $this->assertActivityLogged('user:user.create');
+        $this->assertDatabaseHas('activity_logs', [
+            'event' => 'user:user.create',
+            'actor_type' => $user->getMorphClass(),
+            'actor_id' => $user->id,
+        ]);
+    }
+
+    /**
      * Tests that an error is returned if a subuser attempts to create a new subuser and assign
      * permissions that their account does not also possess.
      */
@@ -61,8 +87,8 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
             Permission::ACTION_CONTROL_CONSOLE,
         ]);
 
-        $response = $this->actingAs($user)->postJson($this->link($server) . "/users", [
-            'email' => $email = $this->faker->email,
+        $response = $this->actingAs($user)->postJson($this->link($server) . '/users', [
+            'email' => $this->faker->email,
             'permissions' => [
                 Permission::ACTION_USER_CREATE,
                 Permission::ACTION_USER_UPDATE, // This permission is not assigned to the subuser.
@@ -81,9 +107,23 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
     {
         [$user, $server] = $this->generateTestAccount();
 
-        $email = str_repeat(Str::random(20), 9) . '1@gmail.com'; // 191 is the hard limit for the column in MySQL.
+        /*
+         * RFCs limit certain parts of an email to certain character limits.
+         *
+         * A limit of <= 64 for the local, then <= 63 for each domain label.
+         * We will stay below the limit to make sure we're within the 191 column limit for emails.
+         */
+        $local = str_repeat(Str::random(10), 6) . '1234';
+        $label = str_repeat(Str::random(10), 6) . '1';
 
-        $response = $this->actingAs($user)->postJson($this->link($server) . "/users", [
+        // Make sure we're within the column limit
+        $email = "$local@$label.$label.au";
+
+        $this->assertSame(64, strlen($local));
+        $this->assertSame(61, strlen($label));
+        $this->assertSame(191, strlen($email));
+
+        $response = $this->actingAs($user)->postJson($this->link($server) . '/users', [
             'email' => $email,
             'permissions' => [
                 Permission::ACTION_USER_CREATE,
@@ -92,8 +132,13 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
 
         $response->assertOk();
 
-        $response = $this->actingAs($user)->postJson($this->link($server) . "/users", [
-            'email' => $email . '.au',
+        // Exceed column limit of 1 >= and <= 191
+        $email = "$local@$label.$label.com";
+
+        $this->assertSame(192, strlen($email));
+
+        $response = $this->actingAs($user)->postJson($this->link($server) . '/users', [
+            'email' => $email,
             'permissions' => [
                 Permission::ACTION_USER_CREATE,
             ],
@@ -112,10 +157,10 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
     {
         [$user, $server] = $this->generateTestAccount();
 
-        /** @var \Pterodactyl\Models\User $existing */
-        $existing = factory(User::class)->create(['email' => $this->faker->email]);
+        /** @var User $existing */
+        $existing = User::factory()->create(['email' => $this->faker->email]);
 
-        $response = $this->actingAs($user)->postJson($this->link($server) . "/users", [
+        $response = $this->actingAs($user)->postJson($this->link($server) . '/users', [
             'email' => $existing->email,
             'permissions' => [
                 Permission::ACTION_USER_CREATE,
@@ -135,7 +180,7 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
     {
         [$user, $server] = $this->generateTestAccount();
 
-        $response = $this->actingAs($user)->postJson($this->link($server) . "/users", [
+        $response = $this->actingAs($user)->postJson($this->link($server) . '/users', [
             'email' => $email = $this->faker->email,
             'permissions' => [
                 Permission::ACTION_USER_CREATE,
@@ -144,7 +189,7 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
 
         $response->assertOk();
 
-        $response = $this->actingAs($user)->postJson($this->link($server) . "/users", [
+        $response = $this->actingAs($user)->postJson($this->link($server) . '/users', [
             'email' => $email,
             'permissions' => [
                 Permission::ACTION_USER_CREATE,
@@ -156,10 +201,7 @@ class CreateServerSubuserTest extends ClientApiIntegrationTestCase
         $response->assertJsonPath('errors.0.detail', 'A user with that email address is already assigned as a subuser for this server.');
     }
 
-    /**
-     * @return array
-     */
-    public function permissionsDataProvider(): array
+    public static function permissionsDataProvider(): array
     {
         return [[[]], [[Permission::ACTION_USER_CREATE]]];
     }

@@ -1,73 +1,27 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Services\Users;
 
 use Pterodactyl\Models\User;
+use Pterodactyl\Models\Server;
 use Pterodactyl\Exceptions\DisplayException;
-use Illuminate\Contracts\Translation\Translator;
-use Pterodactyl\Contracts\Repository\UserRepositoryInterface;
-use Pterodactyl\Contracts\Repository\ServerRepositoryInterface;
 
 class UserDeletionService
 {
     /**
-     * @var \Pterodactyl\Contracts\Repository\UserRepositoryInterface
-     */
-    protected $repository;
-
-    /**
-     * @var \Illuminate\Contracts\Translation\Translator
-     */
-    protected $translator;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\ServerRepositoryInterface
-     */
-    protected $serverRepository;
-
-    /**
-     * DeletionService constructor.
-     *
-     * @param \Pterodactyl\Contracts\Repository\ServerRepositoryInterface $serverRepository
-     * @param \Illuminate\Contracts\Translation\Translator $translator
-     * @param \Pterodactyl\Contracts\Repository\UserRepositoryInterface $repository
-     */
-    public function __construct(
-        ServerRepositoryInterface $serverRepository,
-        Translator $translator,
-        UserRepositoryInterface $repository
-    ) {
-        $this->repository = $repository;
-        $this->translator = $translator;
-        $this->serverRepository = $serverRepository;
-    }
-
-    /**
      * Delete a user from the panel only if they have no servers attached to their account.
      *
-     * @param int|\Pterodactyl\Models\User $user
-     * @return bool|null
-     *
-     * @throws \Pterodactyl\Exceptions\DisplayException
+     * @throws DisplayException
      */
-    public function handle($user)
+    public function handle(int|User $user): ?bool
     {
-        if ($user instanceof User) {
-            $user = $user->id;
-        }
+        $user = $user instanceof User ? $user : User::query()->findOrFail($user);
 
-        $servers = $this->serverRepository->setColumns('id')->findCountWhere([['owner_id', '=', $user]]);
+        $servers = Server::query()->where('owner_id', $user->id)->count();
         if ($servers > 0) {
-            throw new DisplayException($this->translator->trans('admin/user.exceptions.user_has_servers'));
+            throw new DisplayException(trans('admin/user.exceptions.user_has_servers'));
         }
 
-        return $this->repository->delete($user);
+        return $user->delete();
     }
 }

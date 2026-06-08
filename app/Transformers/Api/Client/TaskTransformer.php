@@ -6,9 +6,6 @@ use Pterodactyl\Models\Task;
 
 class TaskTransformer extends BaseClientTransformer
 {
-    /**
-     * {@inheritdoc}
-     */
     public function getResourceName(): string
     {
         return Task::RESOURCE_NAME;
@@ -16,11 +13,8 @@ class TaskTransformer extends BaseClientTransformer
 
     /**
      * Transforms a schedule's task into a client viewable format.
-     *
-     * @param \Pterodactyl\Models\Task $model
-     * @return array
      */
-    public function transform(Task $model)
+    public function transform(Task $model): array
     {
         return [
             'id' => $model->id,
@@ -29,8 +23,9 @@ class TaskTransformer extends BaseClientTransformer
             'payload' => $model->payload,
             'time_offset' => $model->time_offset,
             'is_queued' => $model->is_queued,
-            'created_at' => $model->created_at->toIso8601String(),
-            'updated_at' => $model->updated_at->toIso8601String(),
+            'continue_on_failure' => $model->continue_on_failure,
+            'created_at' => $model->created_at->toAtomString(),
+            'updated_at' => $model->updated_at->toAtomString(),
         ];
     }
 }

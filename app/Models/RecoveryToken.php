@@ -2,42 +2,34 @@
 
 namespace Pterodactyl\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
 /**
  * @property int $id
  * @property int $user_id
  * @property string $token
  * @property \Carbon\CarbonImmutable $created_at
- *
- * @property \Pterodactyl\Models\User $user
+ * @property User $user
  */
 class RecoveryToken extends Model
 {
     /**
      * There are no updates to this model, only inserts and deletes.
      */
-    const UPDATED_AT = null;
+    public const UPDATED_AT = null;
 
-    /**
-     * @var bool
-     */
     public $timestamps = true;
 
-    /**
-     * @var bool
-     */
-    protected $immutableDates = true;
+    protected bool $immutableDates = true;
 
-    /**
-     * @var string[]
-     */
-    public static $validationRules = [
+    public static array $validationRules = [
         'token' => 'required|string',
     ];
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo<\Pterodactyl\Models\User, $this>
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

@@ -1,8 +1,3 @@
-{{-- Pterodactyl - Panel --}}
-{{-- Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com> --}}
-
-{{-- This software is licensed under the terms of the MIT license. --}}
-{{-- https://opensource.org/licenses/MIT --}}
 
 @extends('layouts.admin')
 
@@ -11,7 +6,7 @@
 @endsection
 
 @section('content-header')
-    <h1>Mounts<small>SoonTM</small></h1>
+    <h1>Mounts<small>Configure and manage additional mount points for servers.</small></h1>
     <ol class="breadcrumb">
         <li><a href="{{ route('admin.index') }}">Admin</a></li>
         <li class="active">Mounts</li>

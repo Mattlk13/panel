@@ -9,17 +9,15 @@ class AddBackupLimitToServers extends Migration
 {
     /**
      * Run the migrations.
-     *
-     * @return void
      */
-    public function up()
+    public function up(): void
     {
         $db = config('database.default');
         // Same as in the backups migration, we need to handle that plugin messing with the data structure
         // here. If we find a result we'll actually keep the column around since we can maintain that backup
         // limit, but we need to correct the column definition a bit.
         $results = DB::select('SELECT * FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = \'servers\' AND COLUMN_NAME = \'backup_limit\'', [
-            config("database.connections.{$db}.database")
+            config("database.connections.{$db}.database"),
         ]);
 
         if (count($results) === 1) {
@@ -35,10 +33,8 @@ class AddBackupLimitToServers extends Migration
 
     /**
      * Reverse the migrations.
-     *
-     * @return void
      */
-    public function down()
+    public function down(): void
     {
         Schema::table('servers', function (Blueprint $table) {
             $table->dropColumn('backup_limit');

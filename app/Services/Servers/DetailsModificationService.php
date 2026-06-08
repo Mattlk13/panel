@@ -2,62 +2,53 @@
 
 namespace Pterodactyl\Services\Servers;
 
+use Illuminate\Support\Arr;
 use Pterodactyl\Models\Server;
+use Pterodactyl\Jobs\RevokeSftpAccessJob;
 use Illuminate\Database\ConnectionInterface;
 use Pterodactyl\Traits\Services\ReturnsUpdatedModels;
-use Pterodactyl\Repositories\Eloquent\ServerRepository;
+use Pterodactyl\Repositories\Wings\DaemonServerRepository;
+use Pterodactyl\Repositories\Wings\DaemonRevocationRepository;
 
 class DetailsModificationService
 {
     use ReturnsUpdatedModels;
 
     /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\ServerRepository
-     */
-    private $repository;
-
-    /**
      * DetailsModificationService constructor.
-     *
-     * @param \Illuminate\Database\ConnectionInterface $connection
-     * @param \Pterodactyl\Repositories\Eloquent\ServerRepository $repository
      */
     public function __construct(
-        ConnectionInterface $connection,
-        ServerRepository $repository
+        private ConnectionInterface $connection,
+        private DaemonServerRepository $serverRepository,
+        private DaemonRevocationRepository $revocationRepository,
     ) {
-        $this->connection = $connection;
-        $this->repository = $repository;
     }
 
     /**
      * Update the details for a single server instance.
      *
-     * @param \Pterodactyl\Models\Server $server
-     * @param array $data
-     * @return bool|\Pterodactyl\Models\Server
-     *
-     * @throws \Pterodactyl\Exceptions\Model\DataValidationException
-     * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
+     * @throws \Throwable
      */
-    public function handle(Server $server, array $data)
+    public function handle(Server $server, array $data): Server
     {
-        $this->connection->beginTransaction();
+        return $this->connection->transaction(function () use ($data, $server) {
+            $original = $server->user;
 
-        $response = $this->repository->setFreshModel($this->getUpdatedModel())->update($server->id, [
-            'external_id' => array_get($data, 'external_id'),
-            'owner_id' => array_get($data, 'owner_id'),
-            'name' => array_get($data, 'name'),
-            'description' => array_get($data, 'description') ?? '',
-        ], true, true);
+            $server->forceFill([
+                'external_id' => Arr::get($data, 'external_id'),
+                'owner_id' => Arr::get($data, 'owner_id'),
+                'name' => Arr::get($data, 'name'),
+                'description' => Arr::get($data, 'description') ?? '',
+            ])->saveOrFail();
 
-        $this->connection->commit();
+            // If the owner_id value is changed we need to revoke any tokens that exist for the server
+            // on the Wings instance so that the old owner no longer has any permission to access the
+            // websockets.
+            if (! $server->refresh()->user->is($original)) {
+                RevokeSftpAccessJob::dispatch($original->uuid, $server);
+            }
 
-        return $response;
+            return $server;
+        });
     }
 }

@@ -1,8 +1,3 @@
-{{-- Pterodactyl - Panel --}}
-{{-- Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com> --}}
-
-{{-- This software is licensed under the terms of the MIT license. --}}
-{{-- https://opensource.org/licenses/MIT --}}
 @extends('layouts.admin')
 
 @section('title')
@@ -59,7 +54,7 @@
                         <div>
                             <select name="location_id" class="form-control">
                                 @foreach($locations as $location)
-                                    <option value="{{ $location->id }}" {{ (old('location_id', $node->location_id) === $location->id) ? 'selected' : '' }}>{{ $location->long }} ({{ $location->short }})</option>
+                                    <option value="{{ $location->id }}" {{ (((int) old('location_id', $node->location_id)) === $location->id) ? 'selected' : '' }}>{{ $location->long }} ({{ $location->short }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -112,11 +107,11 @@
                         <label class="form-label"><span class="label label-warning"><i class="fa fa-wrench"></i></span> Maintenance Mode</label>
                         <div>
                             <div class="radio radio-success radio-inline">
-                                <input type="radio" id="pMaintenanceFalse" value="0" name="maintenance_mode" {{ (old('behind_proxy', $node->maintenance_mode) == false) ? 'checked' : '' }}>
+                                <input type="radio" id="pMaintenanceFalse" value="0" name="maintenance_mode" {{ (old('maintenance_mode', $node->maintenance_mode) == false) ? 'checked' : '' }}>
                                 <label for="pMaintenanceFalse"> Disabled</label>
                             </div>
                             <div class="radio radio-warning radio-inline">
-                                <input type="radio" id="pMaintenanceTrue" value="1" name="maintenance_mode" {{ (old('behind_proxy', $node->maintenance_mode) == true) ? 'checked' : '' }}>
+                                <input type="radio" id="pMaintenanceTrue" value="1" name="maintenance_mode" {{ (old('maintenance_mode', $node->maintenance_mode) == true) ? 'checked' : '' }}>
                                 <label for="pMaintenanceTrue"> Enabled</label>
                             </div>
                         </div>
@@ -137,7 +132,7 @@
                                 <label for="memory" class="control-label">Total Memory</label>
                                 <div class="input-group">
                                     <input type="text" name="memory" class="form-control" data-multiplicator="true" value="{{ old('memory', $node->memory) }}"/>
-                                    <span class="input-group-addon">MB</span>
+                                    <span class="input-group-addon">MiB</span>
                                 </div>
                             </div>
                             <div class="form-group col-xs-6">
@@ -156,7 +151,7 @@
                                 <label for="disk" class="control-label">Disk Space</label>
                                 <div class="input-group">
                                     <input type="text" name="disk" class="form-control" data-multiplicator="true" value="{{ old('disk', $node->disk) }}"/>
-                                    <span class="input-group-addon">MB</span>
+                                    <span class="input-group-addon">MiB</span>
                                 </div>
                             </div>
                             <div class="form-group col-xs-6">
@@ -182,7 +177,7 @@
                         <label for="disk_overallocate" class="control-label">Maximum Web Upload Filesize</label>
                         <div class="input-group">
                             <input type="text" name="upload_size" class="form-control" value="{{ old('upload_size', $node->upload_size) }}"/>
-                            <span class="input-group-addon">MB</span>
+                            <span class="input-group-addon">MiB</span>
                         </div>
                         <p class="text-muted"><small>Enter the maximum size of files that can be uploaded through the web-based file manager.</small></p>
                     </div>

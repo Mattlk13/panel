@@ -6,23 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class MountServer extends Model
 {
-    /**
-     * @var string
-     */
     protected $table = 'mount_server';
 
-    /**
-     * @var bool
-     */
     public $timestamps = false;
 
-    /**
-     * @var null
-     */
-    protected $primaryKey = null;
+    protected $primaryKey;
 
-    /**
-     * @var bool
-     */
     public $incrementing = false;
 }

@@ -11,10 +11,8 @@ class RenameServerRequest extends ClientApiRequest implements ClientPermissionsR
 {
     /**
      * Returns the permissions string indicating which permission should be used to
-     * validate that the authenticated user has permission to perform this action aganist
+     * validate that the authenticated user has permission to perform this action against
      * the given resource (server).
-     *
-     * @return string
      */
     public function permission(): string
     {
@@ -23,13 +21,12 @@ class RenameServerRequest extends ClientApiRequest implements ClientPermissionsR
 
     /**
      * The rules to apply when validating this request.
-     *
-     * @return array
      */
     public function rules(): array
     {
         return [
             'name' => Server::getRules()['name'],
+            'description' => 'string|nullable',
         ];
     }
 }

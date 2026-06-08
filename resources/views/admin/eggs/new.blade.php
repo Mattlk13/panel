@@ -1,8 +1,3 @@
-{{-- Pterodactyl - Panel --}}
-{{-- Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com> --}}
-
-{{-- This software is licensed under the terms of the MIT license. --}}
-{{-- https://opensource.org/licenses/MIT --}}
 @extends('layouts.admin')
 
 @section('title')
@@ -50,17 +45,40 @@
                                 <textarea id="pDescription" name="description" class="form-control" rows="8">{{ old('description') }}</textarea>
                                 <p class="text-muted small">A description of this Egg.</p>
                             </div>
+                            <div class="form-group">
+                                <div class="checkbox checkbox-primary no-margin-bottom">
+                                    <input id="pForceOutgoingIp" name="force_outgoing_ip" type="checkbox" value="1" {{ \Pterodactyl\Helpers\Utilities::checked('force_outgoing_ip', 0) }} />
+                                    <label for="pForceOutgoingIp" class="strong">Force Outgoing IP</label>
+                                    <p class="text-muted small">
+                                        Forces all outgoing network traffic to have its Source IP NATed to the IP of the server's primary allocation IP.
+                                        Required for certain games to work properly when the Node has multiple public IP addresses.
+                                        <br>
+                                        <strong>
+                                            Enabling this option will disable internal networking for any servers using this egg,
+                                            causing them to be unable to internally access other servers on the same node.
+                                        </strong>
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-sm-6">
                             <div class="form-group">
-                                <label for="pDockerImage" class="control-label">Docker Image</label>
-                                <input type="text" id="pDockerImage" name="docker_image" value="{{ old('docker_image') }}" placeholder="quay.io/pterodactyl/service" class="form-control" />
-                                <p class="text-muted small">The default docker image that should be used for new servers using this Egg. This can be changed per-server.</p>
+                                <label for="pDockerImage" class="control-label">Docker Images</label>
+                                <textarea id="pDockerImages" name="docker_images" rows="4" placeholder="ghcr.io/pterodactyl/yolks" class="form-control">{{ old('docker_images') }}</textarea>
+                                <p class="text-muted small">The docker images available to servers using this egg. Enter one per line. Users will be able to select from this list of images if more than one value is provided.</p>
                             </div>
                             <div class="form-group">
                                 <label for="pStartup" class="control-label">Startup Command</label>
-                                <textarea id="pStartup" name="startup" class="form-control" rows="14">{{ old('startup') }}</textarea>
+                                <textarea id="pStartup" name="startup" class="form-control" rows="10">{{ old('startup') }}</textarea>
                                 <p class="text-muted small">The default startup command that should be used for new servers created with this Egg. You can change this per-server as needed.</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="pConfigFeatures" class="control-label">Features</label>
+                                <div>
+                                    <select class="form-control" name="features[]" id="pConfigFeatures" multiple>
+                                    </select>
+                                    <p class="text-muted small">Additional features belonging to the egg. Useful for configuring additional panel modifications.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -150,6 +168,11 @@
 
             $(this).val(prepend + '    ' + append);
         }
+    });
+    $('#pConfigFeatures').select2({
+        tags: true,
+        selectOnClose: false,
+        tokenSeparators: [',', ' '],
     });
     </script>
 @endsection

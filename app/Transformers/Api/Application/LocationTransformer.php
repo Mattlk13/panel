@@ -3,21 +3,19 @@
 namespace Pterodactyl\Transformers\Api\Application;
 
 use Pterodactyl\Models\Location;
+use League\Fractal\Resource\Collection;
+use League\Fractal\Resource\NullResource;
 use Pterodactyl\Services\Acl\Api\AdminAcl;
 
 class LocationTransformer extends BaseTransformer
 {
     /**
      * List of resources that can be included.
-     *
-     * @var array
      */
-    protected $availableIncludes = ['nodes', 'servers'];
+    protected array $availableIncludes = ['nodes', 'servers'];
 
     /**
      * Return the resource name for the JSONAPI output.
-     *
-     * @return string
      */
     public function getResourceName(): string
     {
@@ -26,9 +24,6 @@ class LocationTransformer extends BaseTransformer
 
     /**
      * Return a generic transformed location array.
-     *
-     * @param \Pterodactyl\Models\Location $location
-     * @return array
      */
     public function transform(Location $location): array
     {
@@ -44,14 +39,11 @@ class LocationTransformer extends BaseTransformer
     /**
      * Return the nodes associated with this location.
      *
-     * @param \Pterodactyl\Models\Location $location
-     * @return \League\Fractal\Resource\Collection|\League\Fractal\Resource\NullResource
-     *
      * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
      */
-    public function includeServers(Location $location)
+    public function includeServers(Location $location): Collection|NullResource
     {
-        if (! $this->authorize(AdminAcl::RESOURCE_SERVERS)) {
+        if (!$this->authorize(AdminAcl::RESOURCE_SERVERS)) {
             return $this->null();
         }
 
@@ -63,14 +55,11 @@ class LocationTransformer extends BaseTransformer
     /**
      * Return the nodes associated with this location.
      *
-     * @param \Pterodactyl\Models\Location $location
-     * @return \League\Fractal\Resource\Collection|\League\Fractal\Resource\NullResource
-     *
      * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
      */
-    public function includeNodes(Location $location)
+    public function includeNodes(Location $location): Collection|NullResource
     {
-        if (! $this->authorize(AdminAcl::RESOURCE_NODES)) {
+        if (!$this->authorize(AdminAcl::RESOURCE_NODES)) {
             return $this->null();
         }
 

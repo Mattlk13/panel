@@ -1,29 +1,24 @@
 <?php
 
-namespace Tests\Unit\Http\Middleware\Api\Daemon;
+namespace Pterodactyl\Tests\Unit\Http\Middleware\Api\Daemon;
 
 use Mockery as m;
+use Mockery\MockInterface;
 use Pterodactyl\Models\Node;
 use Illuminate\Contracts\Encryption\Encrypter;
-use Tests\Unit\Http\Middleware\MiddlewareTestCase;
 use Pterodactyl\Repositories\Eloquent\NodeRepository;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Pterodactyl\Exceptions\Repository\RecordNotFoundException;
 use Pterodactyl\Http\Middleware\Api\Daemon\DaemonAuthenticate;
+use Pterodactyl\Tests\Unit\Http\Middleware\MiddlewareTestCase;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class DaemonAuthenticateTest extends MiddlewareTestCase
 {
-    /**
-     * @var \Mockery\MockInterface
-     */
-    private $repository;
+    private MockInterface $encrypter;
 
-    /**
-     * @var \Mockery\MockInterface
-     */
-    private $encrypter;
+    private MockInterface $repository;
 
     /**
      * Setup tests.
@@ -69,10 +64,8 @@ class DaemonAuthenticateTest extends MiddlewareTestCase
     /**
      * Test that passing in an invalid node daemon secret will result in a bad request
      * exception being returned.
-     *
-     * @param string $token
-     * @dataProvider badTokenDataProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('badTokenDataProvider')]
     public function testResponseShouldFailIfTokenFormatIsIncorrect(string $token)
     {
         $this->expectException(BadRequestHttpException::class);
@@ -91,8 +84,8 @@ class DaemonAuthenticateTest extends MiddlewareTestCase
     {
         $this->expectException(AccessDeniedHttpException::class);
 
-        /** @var \Pterodactyl\Models\Node $model */
-        $model = factory(Node::class)->make();
+        /** @var Node $model */
+        $model = Node::factory()->make();
 
         $this->request->expects('route->getName')->withNoArgs()->andReturn('random.route');
         $this->request->expects('bearerToken')->withNoArgs()->andReturn($model->daemon_token_id . '.random_string_123');
@@ -124,8 +117,8 @@ class DaemonAuthenticateTest extends MiddlewareTestCase
      */
     public function testSuccessfulMiddlewareProcess()
     {
-        /** @var \Pterodactyl\Models\Node $model */
-        $model = factory(Node::class)->make();
+        /** @var Node $model */
+        $model = Node::factory()->make();
 
         $this->request->expects('route->getName')->withNoArgs()->andReturn('random.route');
         $this->request->expects('bearerToken')->withNoArgs()->andReturn($model->daemon_token_id . '.' . decrypt($model->daemon_token));
@@ -144,7 +137,7 @@ class DaemonAuthenticateTest extends MiddlewareTestCase
      *
      * @return array|\string[][]
      */
-    public function badTokenDataProvider(): array
+    public static function badTokenDataProvider(): array
     {
         return [
             ['foo'],
@@ -159,8 +152,6 @@ class DaemonAuthenticateTest extends MiddlewareTestCase
 
     /**
      * Return an instance of the middleware using mocked dependencies.
-     *
-     * @return \Pterodactyl\Http\Middleware\Api\Daemon\DaemonAuthenticate
      */
     private function getMiddleware(): DaemonAuthenticate
     {

@@ -2,16 +2,17 @@
 
 namespace Pterodactyl\Tests\Integration\Api\Client;
 
+use Ramsey\Uuid\Uuid;
 use Pterodactyl\Models\User;
 use Pterodactyl\Models\Server;
 use Pterodactyl\Models\Subuser;
-use Pterodactyl\Models\Permission;
 use Pterodactyl\Models\Allocation;
+use Pterodactyl\Models\Permission;
 
 class ClientControllerTest extends ClientApiIntegrationTestCase
 {
     /**
-     * Test that only the servers a logged in user is assigned to are returned by the
+     * Test that only the servers a logged-in user is assigned to are returned by the
      * API endpoint. Obviously there are cases such as being an administrator or being
      * a subuser, but for this test we just want to test a basic scenario and pretend
      * subusers do not exist at all.
@@ -19,7 +20,7 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
     public function testOnlyLoggedInUsersServersAreReturned()
     {
         /** @var \Pterodactyl\Models\User[] $users */
-        $users = factory(User::class)->times(3)->create();
+        $users = User::factory()->times(3)->create();
 
         /** @var \Pterodactyl\Models\Server[] $servers */
         $servers = [
@@ -46,15 +47,15 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
     public function testServersAreFilteredUsingNameAndUuidInformation()
     {
         /** @var \Pterodactyl\Models\User[] $users */
-        $users = factory(User::class)->times(2)->create();
+        $users = User::factory()->times(2)->create();
         $users[0]->update(['root_admin' => true]);
 
         /** @var \Pterodactyl\Models\Server[] $servers */
         $servers = [
             $this->createServerModel(['user_id' => $users[0]->id, 'name' => 'Julia']),
             $this->createServerModel(['user_id' => $users[1]->id, 'uuidShort' => '12121212', 'name' => 'Janice']),
-            $this->createServerModel(['user_id' => $users[1]->id, 'uuid' => '88788878-12356789', 'external_id' => 'ext123', 'name' => 'Julia']),
-            $this->createServerModel(['user_id' => $users[1]->id, 'uuid' => '88788878-abcdefgh', 'name' => 'Jennifer']),
+            $this->createServerModel(['user_id' => $users[1]->id, 'uuid' => Uuid::uuid4()->toString(), 'external_id' => 'ext123', 'name' => 'Julia']),
+            $this->createServerModel(['user_id' => $users[1]->id, 'uuid' => Uuid::uuid4()->toString(), 'name' => 'Jennifer']),
         ];
 
         $this->actingAs($users[1])->getJson('/api/client?filter[*]=Julia')
@@ -77,16 +78,14 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.attributes.identifier', $servers[1]->uuidShort);
 
-        $this->actingAs($users[1])->getJson('/api/client?filter[*]=88788878')
+        $this->actingAs($users[1])->getJson("/api/client?filter[*]={$servers[2]->uuidShort}")
             ->assertOk()
-            ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.attributes.identifier', $servers[2]->uuidShort)
-            ->assertJsonPath('data.1.attributes.identifier', $servers[3]->uuidShort);
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.attributes.identifier', $servers[2]->uuidShort);
 
         $this->actingAs($users[1])->getJson('/api/client?filter[*]=88788878-abcd')
             ->assertOk()
-            ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.attributes.identifier', $servers[3]->uuidShort);
+            ->assertJsonCount(0, 'data');
 
         $this->actingAs($users[0])->getJson('/api/client?filter[*]=Julia&type=admin-all')
             ->assertOk()
@@ -101,13 +100,13 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
      */
     public function testServersAreFilteredUsingAllocationInformation()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        /** @var \Pterodactyl\Models\Server $server */
+        /** @var User $user */
+        /** @var Server $server */
         [$user, $server] = $this->generateTestAccount();
         $server2 = $this->createServerModel(['user_id' => $user->id, 'node_id' => $server->node_id]);
 
-        $allocation = factory(Allocation::class)->create(['node_id' => $server->node_id, 'server_id' => $server->id, 'ip' => '192.168.1.1', 'port' => 25565]);
-        $allocation2 = factory(Allocation::class)->create(['node_id' => $server->node_id, 'server_id' => $server2->id, 'ip' => '192.168.1.1', 'port' => 25570]);
+        $allocation = Allocation::factory()->create(['node_id' => $server->node_id, 'server_id' => $server->id, 'ip' => '192.168.1.1', 'port' => 25565]);
+        $allocation2 = Allocation::factory()->create(['node_id' => $server->node_id, 'server_id' => $server2->id, 'ip' => '192.168.1.1', 'port' => 25570]);
 
         $server->update(['allocation_id' => $allocation->id]);
         $server2->update(['allocation_id' => $allocation2->id]);
@@ -144,7 +143,7 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
     public function testServersUserIsASubuserOfAreReturned()
     {
         /** @var \Pterodactyl\Models\User[] $users */
-        $users = factory(User::class)->times(3)->create();
+        $users = User::factory()->times(3)->create();
         $servers = [
             $this->createServerModel(['user_id' => $users[0]->id]),
             $this->createServerModel(['user_id' => $users[1]->id]),
@@ -175,7 +174,7 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
     public function testFilterOnlyOwnerServers()
     {
         /** @var \Pterodactyl\Models\User[] $users */
-        $users = factory(User::class)->times(3)->create();
+        $users = User::factory()->times(3)->create();
         $servers = [
             $this->createServerModel(['user_id' => $users[0]->id]),
             $this->createServerModel(['user_id' => $users[1]->id]),
@@ -203,8 +202,8 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
      */
     public function testPermissionsAreReturned()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        $user = factory(User::class)->create();
+        /** @var User $user */
+        $user = User::factory()->create();
 
         $this->actingAs($user)
             ->getJson('/api/client/permissions')
@@ -224,7 +223,7 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
     public function testOnlyAdminLevelServersAreReturned()
     {
         /** @var \Pterodactyl\Models\User[] $users */
-        $users = factory(User::class)->times(4)->create();
+        $users = User::factory()->times(4)->create();
         $users[0]->update(['root_admin' => true]);
 
         $servers = [
@@ -241,7 +240,7 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
         ]);
 
         // Only servers 2 & 3 (0 indexed) should be returned by the API at this point. The user making
-        // the request is the owner of server 0, and a subuser of server 1 so they should be exluded.
+        // the request is the owner of server 0, and a subuser of server 1, so they should be excluded.
         $response = $this->actingAs($users[0])->getJson('/api/client?type=admin');
 
         $response->assertOk();
@@ -259,7 +258,7 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
     public function testAllServersAreReturnedToAdmin()
     {
         /** @var \Pterodactyl\Models\User[] $users */
-        $users = factory(User::class)->times(4)->create();
+        $users = User::factory()->times(4)->create();
         $users[0]->update(['root_admin' => true]);
 
         $servers = [
@@ -285,14 +284,12 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
     /**
      * Test that no servers get returned if the user requests all admin level servers by using
      * ?type=admin or ?type=admin-all in the request.
-     *
-     * @param string $type
-     * @dataProvider filterTypeDataProvider
      */
-    public function testNoServersAreReturnedIfAdminFilterIsPassedByRegularUser($type)
+    #[\PHPUnit\Framework\Attributes\DataProvider('filterTypeDataProvider')]
+    public function testNoServersAreReturnedIfAdminFilterIsPassedByRegularUser(string $type)
     {
         /** @var \Pterodactyl\Models\User[] $users */
-        $users = factory(User::class)->times(3)->create();
+        $users = User::factory()->times(3)->create();
 
         $this->createServerModel(['user_id' => $users[0]->id]);
         $this->createServerModel(['user_id' => $users[1]->id]);
@@ -305,9 +302,34 @@ class ClientControllerTest extends ClientApiIntegrationTestCase
     }
 
     /**
-     * @return array
+     * Test that a subuser without the allocation.read permission is only able to see the primary
+     * allocation for the server.
      */
-    public function filterTypeDataProvider()
+    public function testOnlyPrimaryAllocationIsReturnedToSubuser()
+    {
+        /** @var Server $server */
+        [$user, $server] = $this->generateTestAccount([Permission::ACTION_WEBSOCKET_CONNECT]);
+        $server->allocation->notes = 'Test notes';
+        $server->allocation->save();
+
+        Allocation::factory()->times(2)->create([
+            'node_id' => $server->node_id,
+            'server_id' => $server->id,
+        ]);
+
+        $server->refresh();
+        $response = $this->actingAs($user)->getJson('/api/client');
+
+        $response->assertOk();
+        $response->assertJsonCount(1, 'data');
+        $response->assertJsonPath('data.0.attributes.server_owner', false);
+        $response->assertJsonPath('data.0.attributes.uuid', $server->uuid);
+        $response->assertJsonCount(1, 'data.0.attributes.relationships.allocations.data');
+        $response->assertJsonPath('data.0.attributes.relationships.allocations.data.0.attributes.id', $server->allocation->id);
+        $response->assertJsonPath('data.0.attributes.relationships.allocations.data.0.attributes.notes', null);
+    }
+
+    public static function filterTypeDataProvider(): array
     {
         return [['admin'], ['admin-all']];
     }

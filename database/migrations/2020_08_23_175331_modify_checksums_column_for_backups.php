@@ -1,18 +1,16 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
 
 class ModifyChecksumsColumnForBackups extends Migration
 {
     /**
      * Run the migrations.
-     *
-     * @return void
      */
-    public function up()
+    public function up(): void
     {
         Schema::table('backups', function (Blueprint $table) {
             $table->renameColumn('sha256_hash', 'checksum');
@@ -25,10 +23,8 @@ class ModifyChecksumsColumnForBackups extends Migration
 
     /**
      * Reverse the migrations.
-     *
-     * @return void
      */
-    public function down()
+    public function down(): void
     {
         Schema::table('backups', function (Blueprint $table) {
             $table->renameColumn('checksum', 'sha256_hash');

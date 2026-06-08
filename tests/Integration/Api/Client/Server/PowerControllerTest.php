@@ -2,7 +2,6 @@
 
 namespace Pterodactyl\Tests\Integration\Api\Client\Server;
 
-use Mockery;
 use Illuminate\Http\Response;
 use Pterodactyl\Models\Permission;
 use Pterodactyl\Repositories\Wings\DaemonPowerRepository;
@@ -15,16 +14,15 @@ class PowerControllerTest extends ClientApiIntegrationTestCase
      * an error in response. This checks against the specific permission needed to send
      * the command to the server.
      *
-     * @param string $action
      * @param string[] $permissions
-     * @dataProvider invalidPermissionDataProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidPermissionDataProvider')]
     public function testSubuserWithoutPermissionsReceivesError(string $action, array $permissions)
     {
         [$user, $server] = $this->generateTestAccount($permissions);
 
         $this->actingAs($user)
-            ->postJson("/api/client/servers/{$server->uuid}/power", ['signal' => $action])
+            ->postJson("/api/client/servers/$server->uuid/power", ['signal' => $action])
             ->assertStatus(Response::HTTP_FORBIDDEN);
     }
 
@@ -35,7 +33,7 @@ class PowerControllerTest extends ClientApiIntegrationTestCase
     {
         [$user, $server] = $this->generateTestAccount();
 
-        $response = $this->actingAs($user)->postJson("/api/client/servers/{$server->uuid}/power", [
+        $response = $this->actingAs($user)->postJson("/api/client/servers/$server->uuid/power", [
             'signal' => 'invalid',
         ]);
 
@@ -46,20 +44,17 @@ class PowerControllerTest extends ClientApiIntegrationTestCase
 
     /**
      * Test that sending a valid power actions works.
-     *
-     * @param string $action
-     * @param string $permission
-     * @dataProvider validPowerActionDataProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('validPowerActionDataProvider')]
     public function testActionCanBeSentToServer(string $action, string $permission)
     {
-        $service = Mockery::mock(DaemonPowerRepository::class);
+        $service = \Mockery::mock(DaemonPowerRepository::class);
         $this->app->instance(DaemonPowerRepository::class, $service);
 
         [$user, $server] = $this->generateTestAccount([$permission]);
 
         $service->expects('setServer')
-            ->with(Mockery::on(function ($value) use ($server) {
+            ->with(\Mockery::on(function ($value) use ($server) {
                 return $server->uuid === $value->uuid;
             }))
             ->andReturnSelf()
@@ -68,16 +63,14 @@ class PowerControllerTest extends ClientApiIntegrationTestCase
             ->with(trim($action));
 
         $this->actingAs($user)
-            ->postJson("/api/client/servers/{$server->uuid}/power", ['signal' => $action])
+            ->postJson("/api/client/servers/$server->uuid/power", ['signal' => $action])
             ->assertStatus(Response::HTTP_NO_CONTENT);
     }
 
     /**
      * Returns invalid permission combinations for a given power action.
-     *
-     * @return array
      */
-    public function invalidPermissionDataProvider(): array
+    public static function invalidPermissionDataProvider(): array
     {
         return [
             ['start', [Permission::ACTION_CONTROL_STOP, Permission::ACTION_CONTROL_RESTART]],
@@ -88,10 +81,7 @@ class PowerControllerTest extends ClientApiIntegrationTestCase
         ];
     }
 
-    /**
-     * @return array
-     */
-    public function validPowerActionDataProvider(): array
+    public static function validPowerActionDataProvider(): array
     {
         return [
             ['start', Permission::ACTION_CONTROL_START],

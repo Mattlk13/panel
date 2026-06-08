@@ -9,70 +9,35 @@ use Illuminate\Http\JsonResponse;
 use Pterodactyl\Http\Controllers\Controller;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Pterodactyl\Services\Api\KeyCreationService;
-use Pterodactyl\Repositories\Eloquent\ApiKeyRepository;
 
 class NodeAutoDeployController extends Controller
 {
     /**
-     * @var \Pterodactyl\Services\Api\KeyCreationService
-     */
-    private $keyCreationService;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\ApiKeyRepository
-     */
-    private $repository;
-
-    /**
-     * @var \Illuminate\Contracts\Encryption\Encrypter
-     */
-    private $encrypter;
-
-    /**
      * NodeAutoDeployController constructor.
-     *
-     * @param \Pterodactyl\Repositories\Eloquent\ApiKeyRepository $repository
-     * @param \Illuminate\Contracts\Encryption\Encrypter $encrypter
-     * @param \Pterodactyl\Services\Api\KeyCreationService $keyCreationService
      */
     public function __construct(
-        ApiKeyRepository $repository,
-        Encrypter $encrypter,
-        KeyCreationService $keyCreationService
+        private Encrypter $encrypter,
+        private KeyCreationService $keyCreationService,
     ) {
-        $this->keyCreationService = $keyCreationService;
-        $this->repository = $repository;
-        $this->encrypter = $encrypter;
     }
 
     /**
-     * Generates a new API key for the logged in user with only permission to read
+     * Generates a new API key for the logged-in user with only permission to read
      * nodes, and returns that as the deployment key for a node.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Node $node
-     * @return \Illuminate\Http\JsonResponse
      *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      */
-    public function __invoke(Request $request, Node $node)
+    public function __invoke(Request $request, Node $node): JsonResponse
     {
-        /** @var \Pterodactyl\Models\ApiKey|null $key */
-        $key = $this->repository->getApplicationKeys($request->user())
-            ->filter(function (ApiKey $key) {
-                foreach ($key->getAttributes() as $permission => $value) {
-                    if ($permission === 'r_nodes' && $value === 1) {
-                        return true;
-                    }
-                }
-
-                return false;
-            })
+        $key = ApiKey::query()
+            ->where('user_id', $request->user()->id)
+            ->where('key_type', ApiKey::TYPE_APPLICATION)
+            ->where('r_nodes', 1)
             ->first();
 
         // We couldn't find a key that exists for this user with only permission for
         // reading nodes. Go ahead and create it now.
-        if (! $key) {
+        if (!$key) {
             $key = $this->keyCreationService->setKeyType(ApiKey::TYPE_APPLICATION)->handle([
                 'user_id' => $request->user()->id,
                 'memo' => 'Automatically generated node deployment key.',
@@ -80,7 +45,7 @@ class NodeAutoDeployController extends Controller
             ], ['r_nodes' => 1]);
         }
 
-        return JsonResponse::create([
+        return new JsonResponse([
             'node' => $node->id,
             'token' => $key->identifier . $this->encrypter->decrypt($key->token),
         ]);

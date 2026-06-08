@@ -12,64 +12,34 @@ use Pterodactyl\Contracts\Repository\DatabaseRepositoryInterface;
 class DatabasePasswordService
 {
     /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
-     * @var \Pterodactyl\Extensions\DynamicDatabaseConnection
-     */
-    private $dynamic;
-
-    /**
-     * @var \Illuminate\Contracts\Encryption\Encrypter
-     */
-    private $encrypter;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\DatabaseRepositoryInterface
-     */
-    private $repository;
-
-    /**
      * DatabasePasswordService constructor.
-     *
-     * @param \Illuminate\Database\ConnectionInterface $connection
-     * @param \Pterodactyl\Contracts\Repository\DatabaseRepositoryInterface $repository
-     * @param \Pterodactyl\Extensions\DynamicDatabaseConnection $dynamic
-     * @param \Illuminate\Contracts\Encryption\Encrypter $encrypter
      */
     public function __construct(
-        ConnectionInterface $connection,
-        DatabaseRepositoryInterface $repository,
-        DynamicDatabaseConnection $dynamic,
-        Encrypter $encrypter
+        private ConnectionInterface $connection,
+        private DynamicDatabaseConnection $dynamic,
+        private Encrypter $encrypter,
+        private DatabaseRepositoryInterface $repository,
     ) {
-        $this->connection = $connection;
-        $this->dynamic = $dynamic;
-        $this->encrypter = $encrypter;
-        $this->repository = $repository;
     }
 
     /**
      * Updates a password for a given database.
      *
-     * @param \Pterodactyl\Models\Database|int $database
-     * @return string
-     *
      * @throws \Throwable
      */
-    public function handle(Database $database): string
+    public function handle(Database|int $database): string
     {
         $password = Utilities::randomStringWithSpecialCharacters(24);
 
         $this->connection->transaction(function () use ($database, $password) {
-            $this->dynamic->set('dynamic', $database->database_host_id);
+            // Lock the row to serialize concurrent rotations of the same database.
+            $database->newQuery()->whereKey($database->getKey())->lockForUpdate()->firstOrFail();
 
-            $this->repository->withoutFreshModel()->update($database->id, [
+            $database->update([
                 'password' => $this->encrypter->encrypt($password),
             ]);
 
+            $this->dynamic->set('dynamic', $database->database_host_id);
             $this->repository->dropUser($database->username, $database->remote);
             $this->repository->createUser($database->username, $database->remote, $password, $database->max_connections);
             $this->repository->assignUserToDatabase($database->database, $database->username, $database->remote);

@@ -17,49 +17,18 @@ class IndexController extends Controller
     use AvailableLanguages;
 
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    private $alert;
-
-    /**
-     * @var \Illuminate\Contracts\Console\Kernel
-     */
-    private $kernel;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\SettingsRepositoryInterface
-     */
-    private $settings;
-
-    /**
-     * @var \Pterodactyl\Services\Helpers\SoftwareVersionService
-     */
-    private $versionService;
-
-    /**
      * IndexController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Illuminate\Contracts\Console\Kernel $kernel
-     * @param \Pterodactyl\Contracts\Repository\SettingsRepositoryInterface $settings
-     * @param \Pterodactyl\Services\Helpers\SoftwareVersionService $versionService
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        Kernel $kernel,
-        SettingsRepositoryInterface $settings,
-        SoftwareVersionService $versionService)
-    {
-        $this->alert = $alert;
-        $this->kernel = $kernel;
-        $this->settings = $settings;
-        $this->versionService = $versionService;
+        private AlertsMessageBag $alert,
+        private Kernel $kernel,
+        private SettingsRepositoryInterface $settings,
+        private SoftwareVersionService $versionService,
+    ) {
     }
 
     /**
      * Render the UI for basic Panel settings.
-     *
-     * @return \Illuminate\View\View
      */
     public function index(): View
     {
@@ -72,8 +41,6 @@ class IndexController extends Controller
     /**
      * Handle settings update.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\Settings\BaseSettingsFormRequest $request
-     * @return \Illuminate\Http\RedirectResponse
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */

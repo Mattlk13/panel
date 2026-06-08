@@ -7,11 +7,9 @@ use Pterodactyl\Http\Requests\Admin\AdminFormRequest;
 class AdvancedSettingsFormRequest extends AdminFormRequest
 {
     /**
-     * Return all of the rules to apply to this request's data.
-     *
-     * @return array
+     * Return all the rules to apply to this request's data.
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             'recaptcha:enabled' => 'required|in:true,false',
@@ -19,13 +17,24 @@ class AdvancedSettingsFormRequest extends AdminFormRequest
             'recaptcha:website_key' => 'required|string|max:191',
             'pterodactyl:guzzle:timeout' => 'required|integer|between:1,60',
             'pterodactyl:guzzle:connect_timeout' => 'required|integer|between:1,60',
+            'pterodactyl:client_features:allocations:enabled' => 'required|in:true,false',
+            'pterodactyl:client_features:allocations:range_start' => [
+                'nullable',
+                'required_if:pterodactyl:client_features:allocations:enabled,true',
+                'integer',
+                'between:1024,65535',
+            ],
+            'pterodactyl:client_features:allocations:range_end' => [
+                'nullable',
+                'required_if:pterodactyl:client_features:allocations:enabled,true',
+                'integer',
+                'between:1024,65535',
+                'gt:pterodactyl:client_features:allocations:range_start',
+            ],
         ];
     }
 
-    /**
-     * @return array
-     */
-    public function attributes()
+    public function attributes(): array
     {
         return [
             'recaptcha:enabled' => 'reCAPTCHA Enabled',
@@ -33,6 +42,9 @@ class AdvancedSettingsFormRequest extends AdminFormRequest
             'recaptcha:website_key' => 'reCAPTCHA Website Key',
             'pterodactyl:guzzle:timeout' => 'HTTP Request Timeout',
             'pterodactyl:guzzle:connect_timeout' => 'HTTP Connection Timeout',
+            'pterodactyl:client_features:allocations:enabled' => 'Auto Create Allocations Enabled',
+            'pterodactyl:client_features:allocations:range_start' => 'Starting Port',
+            'pterodactyl:client_features:allocations:range_end' => 'Ending Port',
         ];
     }
 }

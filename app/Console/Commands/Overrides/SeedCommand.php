@@ -10,15 +10,15 @@ class SeedCommand extends BaseSeedCommand
     use RequiresDatabaseMigrations;
 
     /**
-     * Block someone from running this seed command if they have not completed the migration
-     * process.
-     *
-     * @return int
+     * Block someone from running this seed command if they have not completed
+     * the migration process.
      */
-    public function handle()
+    public function handle(): int
     {
         if (!$this->hasCompletedMigrations()) {
-            return $this->showMigrationWarning();
+            $this->showMigrationWarning();
+
+            return 1;
         }
 
         return parent::handle();

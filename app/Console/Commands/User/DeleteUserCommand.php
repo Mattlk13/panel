@@ -1,58 +1,27 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Console\Commands\User;
 
-use Webmozart\Assert\Assert;
 use Pterodactyl\Models\User;
+use Webmozart\Assert\Assert;
 use Illuminate\Console\Command;
 use Pterodactyl\Services\Users\UserDeletionService;
-use Pterodactyl\Contracts\Repository\UserRepositoryInterface;
 
 class DeleteUserCommand extends Command
 {
-    /**
-     * @var \Pterodactyl\Services\Users\UserDeletionService
-     */
-    protected $deletionService;
-
-    /**
-     * @var string
-     */
     protected $description = 'Deletes a user from the Panel if no servers are attached to their account.';
 
-    /**
-     * @var \Pterodactyl\Contracts\Repository\UserRepositoryInterface
-     */
-    protected $repository;
-
-    /**
-     * @var string
-     */
     protected $signature = 'p:user:delete {--user=}';
 
     /**
      * DeleteUserCommand constructor.
-     *
-     * @param \Pterodactyl\Services\Users\UserDeletionService $deletionService
      */
-    public function __construct(UserDeletionService $deletionService) {
+    public function __construct(private UserDeletionService $deletionService)
+    {
         parent::__construct();
-
-        $this->deletionService = $deletionService;
     }
 
-    /**
-     * @return bool
-     * @throws \Pterodactyl\Exceptions\DisplayException
-     */
-    public function handle()
+    public function handle(): int
     {
         $search = $this->option('user') ?? $this->ask(trans('command/messages.user.search_users'));
         Assert::notEmpty($search, 'Search term should be an email address, got: %s.');
@@ -69,7 +38,7 @@ class DeleteUserCommand extends Command
                 return $this->handle();
             }
 
-            return false;
+            return 1;
         }
 
         if ($this->input->isInteractive()) {
@@ -79,24 +48,24 @@ class DeleteUserCommand extends Command
             }
 
             $this->table(['User ID', 'Email', 'Name'], $tableValues);
-            if (! $deleteUser = $this->ask(trans('command/messages.user.select_search_user'))) {
+            if (!$deleteUser = $this->ask(trans('command/messages.user.select_search_user'))) {
                 return $this->handle();
             }
         } else {
             if (count($results) > 1) {
                 $this->error(trans('command/messages.user.multiple_found'));
 
-                return false;
+                return 1;
             }
 
             $deleteUser = $results->first();
         }
 
-        if ($this->confirm(trans('command/messages.user.confirm_delete')) || ! $this->input->isInteractive()) {
+        if ($this->confirm(trans('command/messages.user.confirm_delete')) || !$this->input->isInteractive()) {
             $this->deletionService->handle($deleteUser);
             $this->info(trans('command/messages.user.deleted'));
         }
 
-        return;
+        return 0;
     }
 }

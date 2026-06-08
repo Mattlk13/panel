@@ -11,60 +11,32 @@ use Prologue\Alerts\AlertsMessageBag;
 use Pterodactyl\Services\Acl\Api\AdminAcl;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Services\Api\KeyCreationService;
-use Pterodactyl\Contracts\Repository\ApiKeyRepositoryInterface;
 use Pterodactyl\Http\Requests\Admin\Api\StoreApplicationApiKeyRequest;
 
 class ApiController extends Controller
 {
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    private $alert;
-
-    /**
-     * @var \Pterodactyl\Services\Api\KeyCreationService
-     */
-    private $keyCreationService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\ApiKeyRepositoryInterface
-     */
-    private $repository;
-
-    /**
-     * ApplicationApiController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Pterodactyl\Contracts\Repository\ApiKeyRepositoryInterface $repository
-     * @param \Pterodactyl\Services\Api\KeyCreationService $keyCreationService
+     * ApiController constructor.
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        ApiKeyRepositoryInterface $repository,
-        KeyCreationService $keyCreationService
+        private AlertsMessageBag $alert,
+        private KeyCreationService $keyCreationService,
     ) {
-        $this->alert = $alert;
-        $this->keyCreationService = $keyCreationService;
-        $this->repository = $repository;
     }
 
     /**
      * Render view showing all of a user's application API keys.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\View\View
      */
     public function index(Request $request): View
     {
         return view('admin.api.index', [
-            'keys' => $this->repository->getApplicationKeys($request->user()),
+            'keys' => ApiKey::query()->where('key_type', ApiKey::TYPE_APPLICATION)->get(),
         ]);
     }
 
     /**
      * Render view allowing an admin to create a new application API key.
      *
-     * @return \Illuminate\View\View
      * @throws \ReflectionException
      */
     public function create(): View
@@ -85,9 +57,6 @@ class ApiController extends Controller
     /**
      * Store the new key and redirect the user back to the application key listing.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\Api\StoreApplicationApiKeyRequest $request
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      */
     public function store(StoreApplicationApiKeyRequest $request): RedirectResponse
@@ -104,14 +73,13 @@ class ApiController extends Controller
 
     /**
      * Delete an application API key from the database.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param string $identifier
-     * @return \Illuminate\Http\Response
      */
     public function delete(Request $request, string $identifier): Response
     {
-        $this->repository->deleteApplicationKey($request->user(), $identifier);
+        ApiKey::query()
+            ->where('key_type', ApiKey::TYPE_APPLICATION)
+            ->where('identifier', $identifier)
+            ->delete();
 
         return response('', 204);
     }

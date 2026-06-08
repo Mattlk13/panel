@@ -1,6 +1,15 @@
+export type ServerStatus =
+    | 'installing'
+    | 'install_failed'
+    | 'reinstall_failed'
+    | 'suspended'
+    | 'restoring_backup'
+    | null;
+
 export interface ServerBackup {
     uuid: string;
     isSuccessful: boolean;
+    isLocked: boolean;
     name: string;
     ignoredFiles: string;
     checksum: string;
@@ -14,7 +23,7 @@ export interface ServerEggVariable {
     description: string;
     envVariable: string;
     defaultValue: string;
-    serverValue: string;
+    serverValue: string | null;
     isEditable: boolean;
     rules: string[];
 }

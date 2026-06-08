@@ -9,23 +9,16 @@ interface LocationRepositoryInterface extends RepositoryInterface
 {
     /**
      * Return locations with a count of nodes and servers attached to it.
-     *
-     * @return \Illuminate\Support\Collection
      */
     public function getAllWithDetails(): Collection;
 
     /**
-     * Return all of the available locations with the nodes as a relationship.
-     *
-     * @return \Illuminate\Support\Collection
+     * Return all the available locations with the nodes as a relationship.
      */
     public function getAllWithNodes(): Collection;
 
     /**
-     * Return all of the nodes and their respective count of servers for a location.
-     *
-     * @param int $id
-     * @return mixed
+     * Return all the nodes and their respective count of servers for a location.
      *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
@@ -33,9 +26,6 @@ interface LocationRepositoryInterface extends RepositoryInterface
 
     /**
      * Return a location and the count of nodes in that location.
-     *
-     * @param int $id
-     * @return mixed
      *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */

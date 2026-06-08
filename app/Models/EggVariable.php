@@ -2,6 +2,10 @@
 
 namespace Pterodactyl\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
 /**
  * @property int $id
  * @property int $egg_id
@@ -14,10 +18,9 @@ namespace Pterodactyl\Models;
  * @property string $rules
  * @property \Carbon\CarbonImmutable $created_at
  * @property \Carbon\CarbonImmutable $updated_at
- *
  * @property bool $required
- * @property \Pterodactyl\Models\Egg $egg
- * @property \Pterodactyl\Models\ServerVariable $serverVariable
+ * @property Egg $egg
+ * @property ServerVariable $serverVariable
  *
  * The "server_value" variable is only present on the object if you've loaded this model
  * using the server relationship.
@@ -25,42 +28,34 @@ namespace Pterodactyl\Models;
  */
 class EggVariable extends Model
 {
+    /** @use HasFactory<\Database\Factories\EggVariableFactory> */
+    use HasFactory;
+
     /**
      * The resource name for this model when it is transformed into an
      * API representation using fractal.
      */
-    const RESOURCE_NAME = 'egg_variable';
+    public const RESOURCE_NAME = 'egg_variable';
 
     /**
      * Reserved environment variable names.
-     *
-     * @var string
      */
-    const RESERVED_ENV_NAMES = 'SERVER_MEMORY,SERVER_IP,SERVER_PORT,ENV,HOME,USER,STARTUP,SERVER_UUID,UUID';
+    public const RESERVED_ENV_NAMES = 'SERVER_MEMORY,SERVER_IP,SERVER_PORT,ENV,HOME,USER,STARTUP,SERVER_UUID,UUID';
 
-    /**
-     * @var bool
-     */
-    protected $immutableDates = true;
+    protected bool $immutableDates = true;
 
     /**
      * The table associated with the model.
-     *
-     * @var string
      */
     protected $table = 'egg_variables';
 
     /**
      * Fields that are not mass assignable.
-     *
-     * @var array
      */
     protected $guarded = ['id', 'created_at', 'updated_at'];
 
     /**
      * Cast values to correct type.
-     *
-     * @var array
      */
     protected $casts = [
         'egg_id' => 'integer',
@@ -68,10 +63,7 @@ class EggVariable extends Model
         'user_editable' => 'bool',
     ];
 
-    /**
-     * @var array
-     */
-    public static $validationRules = [
+    public static array $validationRules = [
         'egg_id' => 'exists:eggs,id',
         'name' => 'required|string|between:1,191',
         'description' => 'string',
@@ -82,26 +74,20 @@ class EggVariable extends Model
         'rules' => 'required|string',
     ];
 
-    /**
-     * @var array
-     */
     protected $attributes = [
         'user_editable' => 0,
         'user_viewable' => 0,
     ];
 
-    /**
-     * @return bool
-     */
-    public function getRequiredAttribute()
+    public function getRequiredAttribute(): bool
     {
         return in_array('required', explode('|', $this->rules));
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne<\Pterodactyl\Models\Egg, $this>
      */
-    public function egg()
+    public function egg(): HasOne
     {
         return $this->hasOne(Egg::class);
     }
@@ -109,9 +95,9 @@ class EggVariable extends Model
     /**
      * Return server variables associated with this variable.
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<\Pterodactyl\Models\ServerVariable, $this>
      */
-    public function serverVariable()
+    public function serverVariable(): HasMany
     {
         return $this->hasMany(ServerVariable::class, 'variable_id');
     }

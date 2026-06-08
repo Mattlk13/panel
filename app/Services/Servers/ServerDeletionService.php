@@ -2,7 +2,6 @@
 
 namespace Pterodactyl\Services\Servers;
 
-use Exception;
 use Illuminate\Http\Response;
 use Pterodactyl\Models\Server;
 use Illuminate\Support\Facades\Log;
@@ -13,50 +12,22 @@ use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
 
 class ServerDeletionService
 {
-    /**
-     * @var bool
-     */
-    protected $force = false;
+    protected bool $force = false;
 
     /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
-     * @var \Pterodactyl\Repositories\Wings\DaemonServerRepository
-     */
-    private $daemonServerRepository;
-
-    /**
-     * @var \Pterodactyl\Services\Databases\DatabaseManagementService
-     */
-    private $databaseManagementService;
-
-    /**
-     * DeletionService constructor.
-     *
-     * @param \Illuminate\Database\ConnectionInterface $connection
-     * @param \Pterodactyl\Repositories\Wings\DaemonServerRepository $daemonServerRepository
-     * @param \Pterodactyl\Services\Databases\DatabaseManagementService $databaseManagementService
+     * ServerDeletionService constructor.
      */
     public function __construct(
-        ConnectionInterface $connection,
-        DaemonServerRepository $daemonServerRepository,
-        DatabaseManagementService $databaseManagementService
+        private ConnectionInterface $connection,
+        private DaemonServerRepository $daemonServerRepository,
+        private DatabaseManagementService $databaseManagementService,
     ) {
-        $this->connection = $connection;
-        $this->daemonServerRepository = $daemonServerRepository;
-        $this->databaseManagementService = $databaseManagementService;
     }
 
     /**
      * Set if the server should be forcibly deleted from the panel (ignoring daemon errors) or not.
-     *
-     * @param bool $bool
-     * @return $this
      */
-    public function withForce($bool = true)
+    public function withForce(bool $bool = true): self
     {
         $this->force = $bool;
 
@@ -64,14 +35,12 @@ class ServerDeletionService
     }
 
     /**
-     * Delete a server from the panel and remove any associated databases from hosts.
-     *
-     * @param \Pterodactyl\Models\Server $server
+     * Delete a server from the panel, clear any allocation notes, and remove any associated databases from hosts.
      *
      * @throws \Throwable
      * @throws \Pterodactyl\Exceptions\DisplayException
      */
-    public function handle(Server $server)
+    public function handle(Server $server): void
     {
         try {
             $this->daemonServerRepository->setServer($server)->delete();
@@ -80,7 +49,7 @@ class ServerDeletionService
             // go ahead and bail out. We specifically ignore a 404 since that can be assumed
             // to be a safe error, meaning the server doesn't exist at all on Wings so there
             // is no reason we need to bail out from that.
-            if (! $this->force && $exception->getStatusCode() !== Response::HTTP_NOT_FOUND) {
+            if (!$this->force && $exception->getStatusCode() !== Response::HTTP_NOT_FOUND) {
                 throw $exception;
             }
 
@@ -91,7 +60,7 @@ class ServerDeletionService
             foreach ($server->databases as $database) {
                 try {
                     $this->databaseManagementService->delete($database);
-                } catch (Exception $exception) {
+                } catch (\Exception $exception) {
                     if (!$this->force) {
                         throw $exception;
                     }
@@ -107,6 +76,10 @@ class ServerDeletionService
                     Log::warning($exception);
                 }
             }
+
+            // clear any allocation notes for the server
+            $server->allocations()->update(['notes' => null]);
+
 
             $server->delete();
         });

@@ -8,7 +8,6 @@ use Illuminate\Http\JsonResponse;
 use Spatie\QueryBuilder\QueryBuilder;
 use Pterodactyl\Services\Servers\ServerCreationService;
 use Pterodactyl\Services\Servers\ServerDeletionService;
-use Pterodactyl\Contracts\Repository\ServerRepositoryInterface;
 use Pterodactyl\Transformers\Api\Application\ServerTransformer;
 use Pterodactyl\Http\Requests\Api\Application\Servers\GetServerRequest;
 use Pterodactyl\Http\Requests\Api\Application\Servers\GetServersRequest;
@@ -19,51 +18,24 @@ use Pterodactyl\Http\Controllers\Api\Application\ApplicationApiController;
 class ServerController extends ApplicationApiController
 {
     /**
-     * @var \Pterodactyl\Services\Servers\ServerCreationService
-     */
-    private $creationService;
-
-    /**
-     * @var \Pterodactyl\Services\Servers\ServerDeletionService
-     */
-    private $deletionService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\ServerRepositoryInterface
-     */
-    private $repository;
-
-    /**
      * ServerController constructor.
-     *
-     * @param \Pterodactyl\Services\Servers\ServerCreationService $creationService
-     * @param \Pterodactyl\Services\Servers\ServerDeletionService $deletionService
-     * @param \Pterodactyl\Contracts\Repository\ServerRepositoryInterface $repository
      */
     public function __construct(
-        ServerCreationService $creationService,
-        ServerDeletionService $deletionService,
-        ServerRepositoryInterface $repository
+        private ServerCreationService $creationService,
+        private ServerDeletionService $deletionService,
     ) {
         parent::__construct();
-
-        $this->creationService = $creationService;
-        $this->deletionService = $deletionService;
-        $this->repository = $repository;
     }
 
     /**
-     * Return all of the servers that currently exist on the Panel.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Servers\GetServersRequest $request
-     * @return array
+     * Return all the servers that currently exist on the Panel.
      */
     public function index(GetServersRequest $request): array
     {
         $servers = QueryBuilder::for(Server::query())
-            ->allowedFilters(['uuid', 'name', 'image', 'external_id'])
+            ->allowedFilters(['uuid', 'uuidShort', 'name', 'description', 'image', 'external_id'])
             ->allowedSorts(['id', 'uuid'])
-            ->paginate(100);
+            ->paginate($request->query('per_page') ?? 50);
 
         return $this->fractal->collection($servers)
             ->transformWith($this->getTransformer(ServerTransformer::class))
@@ -72,9 +44,6 @@ class ServerController extends ApplicationApiController
 
     /**
      * Create a new server on the system.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Servers\StoreServerRequest $request
-     * @return \Illuminate\Http\JsonResponse
      *
      * @throws \Throwable
      * @throws \Illuminate\Validation\ValidationException
@@ -95,22 +64,16 @@ class ServerController extends ApplicationApiController
 
     /**
      * Show a single server transformed for the application API.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Servers\GetServerRequest $request
-     * @return array
      */
-    public function view(GetServerRequest $request): array
+    public function view(GetServerRequest $request, Server $server): array
     {
-        return $this->fractal->item($request->getModel(Server::class))
+        return $this->fractal->item($server)
             ->transformWith($this->getTransformer(ServerTransformer::class))
             ->toArray();
     }
 
     /**
-     * @param \Pterodactyl\Http\Requests\Api\Application\Servers\ServerWriteRequest $request
-     * @param \Pterodactyl\Models\Server $server
-     * @param string $force
-     * @return \Illuminate\Http\Response
+     * Deletes a server.
      *
      * @throws \Pterodactyl\Exceptions\DisplayException
      */

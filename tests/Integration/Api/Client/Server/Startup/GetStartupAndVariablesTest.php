@@ -12,17 +12,15 @@ class GetStartupAndVariablesTest extends ClientApiIntegrationTestCase
     /**
      * Test that the startup command and variables are returned for a server, but only the variables
      * that can be viewed by a user (e.g. user_viewable=true).
-     *
-     * @param array $permissions
-     * @dataProvider permissionsDataProvider
      */
-    public function testStartupVariablesAreReturnedForServer($permissions)
+    #[\PHPUnit\Framework\Attributes\DataProvider('permissionsDataProvider')]
+    public function testStartupVariablesAreReturnedForServer(array $permissions)
     {
         /** @var \Pterodactyl\Models\Server $server */
         [$user, $server] = $this->generateTestAccount($permissions);
 
         $egg = $this->cloneEggAndVariables($server->egg);
-        // BUNGEE_VERSION should never be returned back to the user in this API call, either in
+        // BUNGEE_VERSION should never be returned to the user in this API call, either in
         // the array of variables, or revealed in the startup command.
         $egg->variables()->first()->update([
             'user_viewable' => false,
@@ -34,7 +32,7 @@ class GetStartupAndVariablesTest extends ClientApiIntegrationTestCase
         ])->save();
         $server = $server->refresh();
 
-        $response = $this->actingAs($user)->getJson($this->link($server) . "/startup");
+        $response = $this->actingAs($user)->getJson($this->link($server) . '/startup');
 
         $response->assertOk();
         $response->assertJsonPath('meta.startup_command', 'java bungeecord.jar --version [hidden]');
@@ -53,16 +51,13 @@ class GetStartupAndVariablesTest extends ClientApiIntegrationTestCase
     public function testStartupDataIsNotReturnedWithoutPermission()
     {
         [$user, $server] = $this->generateTestAccount([Permission::ACTION_WEBSOCKET_CONNECT]);
-        $this->actingAs($user)->getJson($this->link($server) . "/startup")->assertForbidden();
+        $this->actingAs($user)->getJson($this->link($server) . '/startup')->assertForbidden();
 
-        $user2 = factory(User::class)->create();
-        $this->actingAs($user2)->getJson($this->link($server) . "/startup")->assertNotFound();
+        $user2 = User::factory()->create();
+        $this->actingAs($user2)->getJson($this->link($server) . '/startup')->assertNotFound();
     }
 
-    /**
-     * @return array[]
-     */
-    public function permissionsDataProvider()
+    public static function permissionsDataProvider(): array
     {
         return [[[]], [[Permission::ACTION_STARTUP_READ]]];
     }

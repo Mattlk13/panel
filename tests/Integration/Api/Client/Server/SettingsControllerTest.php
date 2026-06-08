@@ -2,7 +2,6 @@
 
 namespace Pterodactyl\Tests\Integration\Api\Client\Server;
 
-use Mockery;
 use Illuminate\Http\Response;
 use Pterodactyl\Models\Server;
 use Pterodactyl\Models\Permission;
@@ -13,18 +12,18 @@ class SettingsControllerTest extends ClientApiIntegrationTestCase
 {
     /**
      * Test that the server's name can be changed.
-     *
-     * @param array $permissions
-     * @dataProvider renamePermissionsDataProvider
      */
-    public function testServerNameCanBeChanged($permissions)
+    #[\PHPUnit\Framework\Attributes\DataProvider('renamePermissionsDataProvider')]
+    public function testServerNameCanBeChanged(array $permissions)
     {
-        /** @var \Pterodactyl\Models\Server $server */
+        /** @var Server $server */
         [$user, $server] = $this->generateTestAccount($permissions);
         $originalName = $server->name;
+        $originalDescription = $server->description;
 
-        $response = $this->actingAs($user)->postJson("/api/client/servers/{$server->uuid}/settings/rename", [
+        $response = $this->actingAs($user)->postJson("/api/client/servers/$server->uuid/settings/rename", [
             'name' => '',
+            'description' => '',
         ]);
 
         $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -32,15 +31,18 @@ class SettingsControllerTest extends ClientApiIntegrationTestCase
 
         $server = $server->refresh();
         $this->assertSame($originalName, $server->name);
+        $this->assertSame($originalDescription, $server->description);
 
         $this->actingAs($user)
-            ->postJson("/api/client/servers/{$server->uuid}/settings/rename", [
+            ->postJson("/api/client/servers/$server->uuid/settings/rename", [
                 'name' => 'Test Server Name',
+                'description' => 'This is a test server.',
             ])
             ->assertStatus(Response::HTTP_NO_CONTENT);
 
         $server = $server->refresh();
         $this->assertSame('Test Server Name', $server->name);
+        $this->assertSame('This is a test server.', $server->description);
     }
 
     /**
@@ -53,7 +55,7 @@ class SettingsControllerTest extends ClientApiIntegrationTestCase
         $originalName = $server->name;
 
         $this->actingAs($user)
-            ->postJson("/api/client/servers/{$server->uuid}/settings/rename", [
+            ->postJson("/api/client/servers/$server->uuid/settings/rename", [
                 'name' => 'Test Server Name',
             ])
             ->assertStatus(Response::HTTP_FORBIDDEN);
@@ -65,21 +67,19 @@ class SettingsControllerTest extends ClientApiIntegrationTestCase
     /**
      * Test that a server can be reinstalled. Honestly this test doesn't do much of anything other
      * than make sure the endpoint works since.
-     *
-     * @param array $permissions
-     * @dataProvider reinstallPermissionsDataProvider
      */
-    public function testServerCanBeReinstalled($permissions)
+    #[\PHPUnit\Framework\Attributes\DataProvider('reinstallPermissionsDataProvider')]
+    public function testServerCanBeReinstalled(array $permissions)
     {
-        /** @var \Pterodactyl\Models\Server $server */
+        /** @var Server $server */
         [$user, $server] = $this->generateTestAccount($permissions);
-        $this->assertSame(Server::STATUS_INSTALLED, $server->installed);
+        $this->assertTrue($server->isInstalled());
 
-        $service = Mockery::mock(DaemonServerRepository::class);
+        $service = \Mockery::mock(DaemonServerRepository::class);
         $this->app->instance(DaemonServerRepository::class, $service);
 
         $service->expects('setServer')
-            ->with(Mockery::on(function ($value) use ($server) {
+            ->with(\Mockery::on(function ($value) use ($server) {
                 return $value->uuid === $server->uuid;
             }))
             ->andReturnSelf()
@@ -87,11 +87,11 @@ class SettingsControllerTest extends ClientApiIntegrationTestCase
             ->expects('reinstall')
             ->andReturnUndefined();
 
-        $this->actingAs($user)->postJson("/api/client/servers/{$server->uuid}/settings/reinstall")
+        $this->actingAs($user)->postJson("/api/client/servers/$server->uuid/settings/reinstall")
             ->assertStatus(Response::HTTP_ACCEPTED);
 
         $server = $server->refresh();
-        $this->assertSame(Server::STATUS_INSTALLING, $server->installed);
+        $this->assertSame(Server::STATUS_INSTALLING, $server->status);
     }
 
     /**
@@ -103,25 +103,19 @@ class SettingsControllerTest extends ClientApiIntegrationTestCase
         [$user, $server] = $this->generateTestAccount([Permission::ACTION_WEBSOCKET_CONNECT]);
 
         $this->actingAs($user)
-            ->postJson("/api/client/servers/{$server->uuid}/settings/reinstall")
+            ->postJson("/api/client/servers/$server->uuid/settings/reinstall")
             ->assertStatus(Response::HTTP_FORBIDDEN);
 
         $server = $server->refresh();
-        $this->assertSame(Server::STATUS_INSTALLED, $server->installed);
+        $this->assertTrue($server->isInstalled());
     }
 
-    /**
-     * @return array
-     */
-    public function renamePermissionsDataProvider(): array
+    public static function renamePermissionsDataProvider(): array
     {
         return [[[]], [[Permission::ACTION_SETTINGS_RENAME]]];
     }
 
-    /**
-     * @return array
-     */
-    public function reinstallPermissionsDataProvider(): array
+    public static function reinstallPermissionsDataProvider(): array
     {
         return [[[]], [[Permission::ACTION_SETTINGS_REINSTALL]]];
     }

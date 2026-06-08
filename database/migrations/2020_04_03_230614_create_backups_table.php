@@ -9,10 +9,8 @@ class CreateBackupsTable extends Migration
 {
     /**
      * Run the migrations.
-     *
-     * @return void
      */
-    public function up()
+    public function up(): void
     {
         $db = config('database.default');
         // There exists a backups plugin for the 0.7 version of the Panel. However, it didn't properly
@@ -20,13 +18,13 @@ class CreateBackupsTable extends Migration
         // to use. For now, just rename them to maintain the data.
         $results = DB::select('SELECT TABLE_NAME FROM information_schema.tables WHERE table_schema = ? AND table_name LIKE ? AND table_name NOT LIKE \'%_plugin_bak\'', [
             config("database.connections.{$db}.database"),
-            'backup%'
+            'backup%',
         ]);
 
         // Take any of the results, most likely "backups" and "backup_logs" and rename them to have a
         // suffix so data isn't completely lost, but they're no longer in the way of this migration...
         foreach ($results as $result) {
-            Schema::rename($result->TABLE_NAME, $result->TABLE_NAME. '_plugin_bak');
+            Schema::rename($result->TABLE_NAME, $result->TABLE_NAME . '_plugin_bak');
         }
 
         Schema::create('backups', function (Blueprint $table) {
@@ -49,10 +47,8 @@ class CreateBackupsTable extends Migration
 
     /**
      * Reverse the migrations.
-     *
-     * @return void
      */
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('backups');
     }

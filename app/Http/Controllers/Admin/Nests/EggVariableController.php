@@ -1,11 +1,4 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Http\Controllers\Admin\Nests;
 
@@ -14,6 +7,7 @@ use Pterodactyl\Models\Egg;
 use Pterodactyl\Models\EggVariable;
 use Illuminate\Http\RedirectResponse;
 use Prologue\Alerts\AlertsMessageBag;
+use Illuminate\View\Factory as ViewFactory;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Contracts\Repository\EggRepositoryInterface;
 use Pterodactyl\Services\Eggs\Variables\VariableUpdateService;
@@ -24,58 +18,20 @@ use Pterodactyl\Contracts\Repository\EggVariableRepositoryInterface;
 class EggVariableController extends Controller
 {
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    protected $alert;
-
-    /**
-     * @var \Pterodactyl\Services\Eggs\Variables\VariableCreationService
-     */
-    protected $creationService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\EggRepositoryInterface
-     */
-    protected $repository;
-
-    /**
-     * @var \Pterodactyl\Services\Eggs\Variables\VariableUpdateService
-     */
-    protected $updateService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\EggVariableRepositoryInterface
-     */
-    protected $variableRepository;
-
-    /**
      * EggVariableController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Pterodactyl\Services\Eggs\Variables\VariableCreationService $creationService
-     * @param \Pterodactyl\Services\Eggs\Variables\VariableUpdateService $updateService
-     * @param \Pterodactyl\Contracts\Repository\EggRepositoryInterface $repository
-     * @param \Pterodactyl\Contracts\Repository\EggVariableRepositoryInterface $variableRepository
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        VariableCreationService $creationService,
-        VariableUpdateService $updateService,
-        EggRepositoryInterface $repository,
-        EggVariableRepositoryInterface $variableRepository
+        protected AlertsMessageBag $alert,
+        protected VariableCreationService $creationService,
+        protected VariableUpdateService $updateService,
+        protected EggRepositoryInterface $repository,
+        protected EggVariableRepositoryInterface $variableRepository,
+        protected ViewFactory $view,
     ) {
-        $this->alert = $alert;
-        $this->creationService = $creationService;
-        $this->repository = $repository;
-        $this->updateService = $updateService;
-        $this->variableRepository = $variableRepository;
     }
 
     /**
      * Handle request to view the variables attached to an Egg.
-     *
-     * @param int $egg
-     * @return \Illuminate\View\View
      *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
@@ -89,10 +45,6 @@ class EggVariableController extends Controller
     /**
      * Handle a request to create a new Egg variable.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\Egg\EggVariableFormRequest $request
-     * @param \Pterodactyl\Models\Egg $egg
-     *
-     * @return \Illuminate\Http\RedirectResponse
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Service\Egg\Variable\BadValidationRuleException
      * @throws \Pterodactyl\Exceptions\Service\Egg\Variable\ReservedVariableNameException
@@ -108,11 +60,6 @@ class EggVariableController extends Controller
     /**
      * Handle a request to update an existing Egg variable.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\Egg\EggVariableFormRequest $request
-     * @param \Pterodactyl\Models\Egg $egg
-     * @param \Pterodactyl\Models\EggVariable $variable
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Pterodactyl\Exceptions\DisplayException
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
@@ -122,7 +69,7 @@ class EggVariableController extends Controller
     {
         $this->updateService->handle($variable, $request->normalize());
         $this->alert->success(trans('admin/nests.variables.notices.variable_updated', [
-            'variable' => $variable->name,
+            'variable' => htmlspecialchars($variable->name),
         ]))->flash();
 
         return redirect()->route('admin.nests.egg.variables', $egg->id);
@@ -130,16 +77,12 @@ class EggVariableController extends Controller
 
     /**
      * Handle a request to delete an existing Egg variable from the Panel.
-     *
-     * @param int $egg
-     * @param \Pterodactyl\Models\EggVariable $variable
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function destroy(int $egg, EggVariable $variable): RedirectResponse
     {
         $this->variableRepository->delete($variable->id);
         $this->alert->success(trans('admin/nests.variables.notices.variable_deleted', [
-            'variable' => $variable->name,
+            'variable' => htmlspecialchars($variable->name),
         ]))->flash();
 
         return redirect()->route('admin.nests.egg.variables', $egg);

@@ -1,9 +1,9 @@
 <?php
 
-namespace Tests\Unit\Rules;
+namespace Pterodactyl\Tests\Unit\Rules;
 
-use Tests\TestCase;
 use Pterodactyl\Rules\Username;
+use Pterodactyl\Tests\TestCase;
 
 class UsernameTest extends TestCase
 {
@@ -12,34 +12,31 @@ class UsernameTest extends TestCase
      */
     public function testRuleIsStringable()
     {
-        $this->assertSame('p_username', (string) new Username);
+        $this->assertSame('p_username', (string) new Username());
     }
 
     /**
      * Test valid usernames.
-     *
-     * @dataProvider validUsernameDataProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('validUsernameDataProvider')]
     public function testValidUsernames(string $username)
     {
-        $this->assertTrue((new Username)->passes('test', $username), 'Assert username is valid.');
+        $this->assertTrue((new Username())->passes('test', $username), 'Assert username is valid.');
     }
 
     /**
      * Test invalid usernames return false.
-     *
-     * @dataProvider invalidUsernameDataProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidUsernameDataProvider')]
     public function testInvalidUsernames(string $username)
     {
-        $this->assertFalse((new Username)->passes('test', $username), 'Assert username is not valid.');
+        $this->assertFalse((new Username())->passes('test', $username), 'Assert username is not valid.');
     }
 
     /**
      * Provide valid usernames.
-     * @return array
      */
-    public function validUsernameDataProvider(): array
+    public static function validUsernameDataProvider(): array
     {
         return [
             ['username'],
@@ -54,10 +51,8 @@ class UsernameTest extends TestCase
 
     /**
      * Provide invalid usernames.
-     *
-     * @return array
      */
-    public function invalidUsernameDataProvider(): array
+    public static function invalidUsernameDataProvider(): array
     {
         return [
             ['_username'],

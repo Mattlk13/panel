@@ -12,11 +12,9 @@ class UpdateStartupVariableTest extends ClientApiIntegrationTestCase
 {
     /**
      * Test that a startup variable can be edited successfully for a server.
-     *
-     * @param array $permissions
-     * @dataProvider permissionsDataProvider
      */
-    public function testStartupVariableCanBeUpdated($permissions)
+    #[\PHPUnit\Framework\Attributes\DataProvider('permissionsDataProvider')]
+    public function testStartupVariableCanBeUpdated(array $permissions)
     {
         /** @var \Pterodactyl\Models\Server $server */
         [$user, $server] = $this->generateTestAccount($permissions);
@@ -48,10 +46,8 @@ class UpdateStartupVariableTest extends ClientApiIntegrationTestCase
     /**
      * Test that variables that are either not user_viewable, or not user_editable, cannot be
      * updated via this endpoint.
-     *
-     * @param array $permissions
-     * @dataProvider permissionsDataProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('permissionsDataProvider')]
     public function testStartupVariableCannotBeUpdatedIfNotUserViewableOrEditable(array $permissions)
     {
         /** @var \Pterodactyl\Models\Server $server */
@@ -145,16 +141,13 @@ class UpdateStartupVariableTest extends ClientApiIntegrationTestCase
     public function testStartupVariableCannotBeUpdatedIfNotUserViewable()
     {
         [$user, $server] = $this->generateTestAccount([Permission::ACTION_WEBSOCKET_CONNECT]);
-        $this->actingAs($user)->putJson($this->link($server) . "/startup/variable")->assertForbidden();
+        $this->actingAs($user)->putJson($this->link($server) . '/startup/variable')->assertForbidden();
 
-        $user2 = factory(User::class)->create();
-        $this->actingAs($user2)->putJson($this->link($server) . "/startup/variable")->assertNotFound();
+        $user2 = User::factory()->create();
+        $this->actingAs($user2)->putJson($this->link($server) . '/startup/variable')->assertNotFound();
     }
 
-    /**
-     * @return \array[][]
-     */
-    public function permissionsDataProvider()
+    public static function permissionsDataProvider(): array
     {
         return [[[]], [[Permission::ACTION_STARTUP_UPDATE]]];
     }

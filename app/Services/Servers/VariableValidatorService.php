@@ -1,11 +1,4 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Services\Servers;
 
@@ -21,33 +14,22 @@ class VariableValidatorService
     use HasUserLevels;
 
     /**
-     * @var \Illuminate\Contracts\Validation\Factory
-     */
-    private $validator;
-
-    /**
      * VariableValidatorService constructor.
-     *
-     * @param \Illuminate\Contracts\Validation\Factory $validator
      */
-    public function __construct(ValidationFactory $validator)
+    public function __construct(private ValidationFactory $validator)
     {
-        $this->validator = $validator;
     }
 
     /**
      * Validate all of the passed data against the given service option variables.
      *
-     * @param int $egg
-     * @param array $fields
-     * @return \Illuminate\Support\Collection
-     * @throws \Illuminate\Validation\ValidationException
+     * @throws ValidationException
      */
     public function handle(int $egg, array $fields = []): Collection
     {
         $query = EggVariable::query()->where('egg_id', $egg);
-        if (! $this->isUserLevel(User::USER_LEVEL_ADMIN)) {
-            // Don't attempt to validate variables if they aren't user editable
+        if (!$this->isUserLevel(User::USER_LEVEL_ADMIN)) {
+            // Don't attempt to validate variables if they aren't user editable,
             // and we're not running this at an admin level.
             $query = $query->where('user_editable', true)->where('user_viewable', true);
         }
@@ -68,7 +50,7 @@ class VariableValidatorService
         }
 
         return Collection::make($variables)->map(function ($item) use ($fields) {
-            return (object)[
+            return (object) [
                 'id' => $item->id,
                 'key' => $item->env_variable,
                 'value' => $fields[$item->env_variable] ?? null,

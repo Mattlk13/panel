@@ -6,17 +6,11 @@ use Pterodactyl\Models\Permission;
 
 class UpdateSubuserRequest extends SubuserRequest
 {
-    /**
-     * @return string
-     */
-    public function permission()
+    public function permission(): string
     {
         return Permission::ACTION_USER_UPDATE;
     }
 
-    /**
-     * @return array
-     */
     public function rules(): array
     {
         return [

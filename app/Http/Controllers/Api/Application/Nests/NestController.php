@@ -11,31 +11,19 @@ use Pterodactyl\Http\Controllers\Api\Application\ApplicationApiController;
 class NestController extends ApplicationApiController
 {
     /**
-     * @var \Pterodactyl\Contracts\Repository\NestRepositoryInterface
-     */
-    private $repository;
-
-    /**
      * NestController constructor.
-     *
-     * @param \Pterodactyl\Contracts\Repository\NestRepositoryInterface $repository
      */
-    public function __construct(NestRepositoryInterface $repository)
+    public function __construct(private NestRepositoryInterface $repository)
     {
         parent::__construct();
-
-        $this->repository = $repository;
     }
 
     /**
      * Return all Nests that exist on the Panel.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Nests\GetNestsRequest $request
-     * @return array
      */
     public function index(GetNestsRequest $request): array
     {
-        $nests = $this->repository->paginated(50);
+        $nests = $this->repository->paginated($request->query('per_page') ?? 50);
 
         return $this->fractal->collection($nests)
             ->transformWith($this->getTransformer(NestTransformer::class))
@@ -44,13 +32,10 @@ class NestController extends ApplicationApiController
 
     /**
      * Return information about a single Nest model.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Nests\GetNestsRequest $request
-     * @return array
      */
-    public function view(GetNestsRequest $request): array
+    public function view(GetNestsRequest $request, Nest $nest): array
     {
-        return $this->fractal->item($request->getModel(Nest::class))
+        return $this->fractal->item($nest)
             ->transformWith($this->getTransformer(NestTransformer::class))
             ->toArray();
     }

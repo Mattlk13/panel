@@ -1,8 +1,3 @@
-{{-- Pterodactyl - Panel --}}
-{{-- Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com> --}}
-
-{{-- This software is licensed under the terms of the MIT license. --}}
-{{-- https://opensource.org/licenses/MIT --}}
 @extends('layouts.admin')
 
 @section('title')
@@ -51,7 +46,7 @@
                                 <td data-attr="info-system"><i class="fa fa-refresh fa-fw fa-spin"></i></td>
                             </tr>
                             <tr>
-                                <td>Total CPU Cores</td>
+                                <td>Total CPU Threads</td>
                                 <td data-attr="info-cpus"><i class="fa fa-refresh fa-fw fa-spin"></i></td>
                             </tr>
                         </table>
@@ -98,7 +93,7 @@
                 <div class="row">
                     @if($node->maintenance_mode)
                     <div class="col-sm-12">
-                        <div class="info-box bg-grey">
+                        <div class="info-box bg-orange">
                             <span class="info-box-icon"><i class="ion ion-wrench"></i></span>
                             <div class="info-box-content" style="padding: 23px 10px 0;">
                                 <span class="info-box-text">This node is under</span>
@@ -112,7 +107,7 @@
                             <span class="info-box-icon"><i class="ion ion-ios-folder-outline"></i></span>
                             <div class="info-box-content" style="padding: 15px 10px 0;">
                                 <span class="info-box-text">Disk Space Allocated</span>
-                                <span class="info-box-number">{{ $stats['disk']['value'] }} / {{ $stats['disk']['max'] }} Mb</span>
+                                <span class="info-box-number">{{ $stats['disk']['value'] }} / {{ $stats['disk']['max'] }} MiB</span>
                                 <div class="progress">
                                     <div class="progress-bar" style="width: {{ $stats['disk']['percent'] }}%"></div>
                                 </div>
@@ -124,7 +119,7 @@
                             <span class="info-box-icon"><i class="ion ion-ios-barcode-outline"></i></span>
                             <div class="info-box-content" style="padding: 15px 10px 0;">
                                 <span class="info-box-text">Memory Allocated</span>
-                                <span class="info-box-number">{{ $stats['memory']['value'] }} / {{ $stats['memory']['max'] }} Mb</span>
+                                <span class="info-box-number">{{ $stats['memory']['value'] }} / {{ $stats['memory']['max'] }} MiB</span>
                                 <div class="progress">
                                     <div class="progress-bar" style="width: {{ $stats['memory']['percent'] }}%"></div>
                                 </div>
@@ -150,14 +145,20 @@
 @section('footer-scripts')
     @parent
     <script>
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
     (function getInformation() {
         $.ajax({
             method: 'GET',
             url: '/admin/nodes/view/{{ $node->id }}/system-information',
             timeout: 5000,
         }).done(function (data) {
-            $('[data-attr="info-version"]').html(data.version);
-            $('[data-attr="info-system"]').html(data.system.type + ' (' + data.system.arch + ') <code>' + data.system.release + '</code>');
+            $('[data-attr="info-version"]').html(escapeHtml(data.version));
+            $('[data-attr="info-system"]').html(escapeHtml(data.system.type) + ' (' + escapeHtml(data.system.arch) + ') <code>' + escapeHtml(data.system.release) + '</code>');
             $('[data-attr="info-cpus"]').html(data.system.cpus);
         }).fail(function (jqXHR) {
 

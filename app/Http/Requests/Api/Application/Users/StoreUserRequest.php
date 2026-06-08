@@ -8,23 +8,14 @@ use Pterodactyl\Http\Requests\Api\Application\ApplicationApiRequest;
 
 class StoreUserRequest extends ApplicationApiRequest
 {
-    /**
-     * @var string
-     */
-    protected $resource = AdminAcl::RESOURCE_USERS;
+    protected ?string $resource = AdminAcl::RESOURCE_USERS;
 
-    /**
-     * @var int
-     */
-    protected $permission = AdminAcl::WRITE;
+    protected int $permission = AdminAcl::WRITE;
 
     /**
      * Return the validation rules for this request.
-     *
-     * @param array|null $rules
-     * @return array
      */
-    public function rules(array $rules = null): array
+    public function rules(?array $rules = null): array
     {
         $rules = $rules ?? User::getRules();
 
@@ -43,10 +34,7 @@ class StoreUserRequest extends ApplicationApiRequest
         return $response;
     }
 
-    /**
-     * @return array
-     */
-    public function validated()
+    public function validated($key = null, $default = null): array
     {
         $data = parent::validated();
 
@@ -60,10 +48,8 @@ class StoreUserRequest extends ApplicationApiRequest
 
     /**
      * Rename some fields to be more user friendly.
-     *
-     * @return array
      */
-    public function attributes()
+    public function attributes(): array
     {
         return [
             'external_id' => 'Third Party Identifier',

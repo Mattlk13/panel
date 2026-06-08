@@ -8,19 +8,13 @@ class EggTransformer extends BaseClientTransformer
 {
     /**
      * Return the resource name for the JSONAPI output.
-     *
-     * @return string
      */
     public function getResourceName(): string
     {
         return Egg::RESOURCE_NAME;
     }
 
-    /**
-     * @param \Pterodactyl\Models\Egg $egg
-     * @return array
-     */
-    public function transform(Egg $egg)
+    public function transform(Egg $egg): array
     {
         return [
             'uuid' => $egg->uuid,

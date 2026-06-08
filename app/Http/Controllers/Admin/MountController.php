@@ -3,17 +3,17 @@
 namespace Pterodactyl\Http\Controllers\Admin;
 
 use Ramsey\Uuid\Uuid;
-use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Illuminate\Http\Request;
 use Pterodactyl\Models\Nest;
+use Illuminate\Http\Response;
 use Pterodactyl\Models\Mount;
 use Pterodactyl\Models\Location;
+use Illuminate\Http\RedirectResponse;
 use Prologue\Alerts\AlertsMessageBag;
+use Illuminate\View\Factory as ViewFactory;
 use Pterodactyl\Http\Controllers\Controller;
-use Pterodactyl\Services\Mounts\MountUpdateService;
 use Pterodactyl\Http\Requests\Admin\MountFormRequest;
-use Pterodactyl\Services\Mounts\MountCreationService;
-use Pterodactyl\Services\Mounts\MountDeletionService;
 use Pterodactyl\Repositories\Eloquent\MountRepository;
 use Pterodactyl\Contracts\Repository\NestRepositoryInterface;
 use Pterodactyl\Contracts\Repository\LocationRepositoryInterface;
@@ -21,51 +21,21 @@ use Pterodactyl\Contracts\Repository\LocationRepositoryInterface;
 class MountController extends Controller
 {
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    protected $alert;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\NestRepositoryInterface
-     */
-    protected $nestRepository;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\LocationRepositoryInterface
-     */
-    protected $locationRepository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\MountRepository
-     */
-    protected $repository;
-
-    /**
      * MountController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Pterodactyl\Contracts\Repository\NestRepositoryInterface $nestRepository
-     * @param \Pterodactyl\Contracts\Repository\LocationRepositoryInterface $locationRepository
-     * @param \Pterodactyl\Repositories\Eloquent\MountRepository $repository
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        NestRepositoryInterface $nestRepository,
-        LocationRepositoryInterface $locationRepository,
-        MountRepository $repository
+        protected AlertsMessageBag $alert,
+        protected NestRepositoryInterface $nestRepository,
+        protected LocationRepositoryInterface $locationRepository,
+        protected MountRepository $repository,
+        protected ViewFactory $view,
     ) {
-        $this->alert = $alert;
-        $this->nestRepository = $nestRepository;
-        $this->locationRepository = $locationRepository;
-        $this->repository = $repository;
     }
 
     /**
      * Return the mount overview page.
-     *
-     * @return \Illuminate\View\View
      */
-    public function index()
+    public function index(): View
     {
         return view('admin.mounts.index', [
             'mounts' => $this->repository->getAllWithDetails(),
@@ -75,12 +45,9 @@ class MountController extends Controller
     /**
      * Return the mount view page.
      *
-     * @param string $id
-     * @return \Illuminate\View\View
-     *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
-    public function view($id)
+    public function view(string $id): View
     {
         $nests = Nest::query()->with('eggs')->get();
         $locations = Location::query()->with('nodes')->get();
@@ -95,12 +62,9 @@ class MountController extends Controller
     /**
      * Handle request to create new mount.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\MountFormRequest $request
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Throwable
      */
-    public function create(MountFormRequest $request)
+    public function create(MountFormRequest $request): RedirectResponse
     {
         $model = (new Mount())->fill($request->validated());
         $model->forceFill(['uuid' => Uuid::uuid4()->toString()]);
@@ -116,13 +80,9 @@ class MountController extends Controller
     /**
      * Handle request to update or delete location.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\MountFormRequest $request
-     * @param \Pterodactyl\Models\Mount $mount
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Throwable
      */
-    public function update(MountFormRequest $request, Mount $mount)
+    public function update(MountFormRequest $request, Mount $mount): RedirectResponse
     {
         if ($request->input('action') === 'delete') {
             return $this->delete($mount);
@@ -138,12 +98,9 @@ class MountController extends Controller
     /**
      * Delete a location from the system.
      *
-     * @param \Pterodactyl\Models\Mount $mount
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Exception
      */
-    public function delete(Mount $mount)
+    public function delete(Mount $mount): RedirectResponse
     {
         $mount->delete();
 
@@ -151,13 +108,9 @@ class MountController extends Controller
     }
 
     /**
-     * Adds eggs to the mount's many to many relation.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Mount $mount
-     * @return \Illuminate\Http\RedirectResponse
+     * Adds eggs to the mount's many-to-many relation.
      */
-    public function addEggs(Request $request, Mount $mount)
+    public function addEggs(Request $request, Mount $mount): RedirectResponse
     {
         $validatedData = $request->validate([
             'eggs' => 'required|exists:eggs,id',
@@ -174,13 +127,9 @@ class MountController extends Controller
     }
 
     /**
-     * Adds nodes to the mount's many to many relation.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Mount $mount
-     * @return \Illuminate\Http\RedirectResponse
+     * Adds nodes to the mount's many-to-many relation.
      */
-    public function addNodes(Request $request, Mount $mount)
+    public function addNodes(Request $request, Mount $mount): RedirectResponse
     {
         $data = $request->validate(['nodes' => 'required|exists:nodes,id']);
 
@@ -195,13 +144,9 @@ class MountController extends Controller
     }
 
     /**
-     * Deletes an egg from the mount's many to many relation.
-     *
-     * @param \Pterodactyl\Models\Mount $mount
-     * @param int $egg_id
-     * @return \Illuminate\Http\Response
+     * Deletes an egg from the mount's many-to-many relation.
      */
-    public function deleteEgg(Mount $mount, int $egg_id)
+    public function deleteEgg(Mount $mount, int $egg_id): Response
     {
         $mount->eggs()->detach($egg_id);
 
@@ -209,13 +154,9 @@ class MountController extends Controller
     }
 
     /**
-     * Deletes an node from the mount's many to many relation.
-     *
-     * @param \Pterodactyl\Models\Mount $mount
-     * @param int $node_id
-     * @return \Illuminate\Http\Response
+     * Deletes a node from the mount's many-to-many relation.
      */
-    public function deleteNode(Mount $mount, int $node_id)
+    public function deleteNode(Mount $mount, int $node_id): Response
     {
         $mount->nodes()->detach($node_id);
 

@@ -9,34 +9,23 @@ use Pterodactyl\Exceptions\Service\Egg\InvalidCopyFromException;
 class InstallScriptService
 {
     /**
-     * @var \Pterodactyl\Contracts\Repository\EggRepositoryInterface
-     */
-    protected $repository;
-
-    /**
      * InstallScriptService constructor.
-     *
-     * @param \Pterodactyl\Contracts\Repository\EggRepositoryInterface $repository
      */
-    public function __construct(EggRepositoryInterface $repository)
+    public function __construct(protected EggRepositoryInterface $repository)
     {
-        $this->repository = $repository;
     }
 
     /**
      * Modify the install script for a given Egg.
      *
-     * @param int|\Pterodactyl\Models\Egg $egg
-     * @param array $data
-     *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
-     * @throws \Pterodactyl\Exceptions\Service\Egg\InvalidCopyFromException
+     * @throws InvalidCopyFromException
      */
-    public function handle(Egg $egg, array $data)
+    public function handle(Egg $egg, array $data): void
     {
-        if (! is_null(array_get($data, 'copy_script_from'))) {
-            if (! $this->repository->isCopyableScript(array_get($data, 'copy_script_from'), $egg->nest_id)) {
+        if (!is_null(array_get($data, 'copy_script_from'))) {
+            if (!$this->repository->isCopyableScript(array_get($data, 'copy_script_from'), $egg->nest_id)) {
                 throw new InvalidCopyFromException(trans('exceptions.nest.egg.invalid_copy_id'));
             }
         }

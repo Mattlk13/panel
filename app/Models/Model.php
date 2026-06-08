@@ -2,46 +2,34 @@
 
 namespace Pterodactyl\Models;
 
+use Carbon\CarbonImmutable;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Container\Container;
-use Illuminate\Contracts\Validation\Factory;
-use Illuminate\Database\Eloquent\Model as IlluminateModel;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Validation\ValidationException;
 use Pterodactyl\Exceptions\Model\DataValidationException;
+use Illuminate\Database\Eloquent\Model as IlluminateModel;
+use Illuminate\Contracts\Validation\Factory as ValidationFactory;
 
 abstract class Model extends IlluminateModel
 {
     /**
      * Set to true to return immutable Carbon date instances from the model.
-     *
-     * @var bool
      */
-    protected $immutableDates = false;
+    protected bool $immutableDates = false;
 
     /**
      * Determines if the model should undergo data validation before it is saved
      * to the database.
-     *
-     * @var bool
      */
-    protected $skipValidation = false;
+    protected bool $skipValidation = false;
 
-    /**
-     * The validator instance used by this model.
-     *
-     * @var \Illuminate\Validation\Validator
-     */
-    protected $validator;
+    protected static ValidationFactory $validatorFactory;
 
-    /**
-     * @var \Illuminate\Contracts\Validation\Factory
-     */
-    protected static $validatorFactory;
-
-    /**
-     * @var array
-     */
-    public static $validationRules = [];
+    public static array $validationRules = [];
 
     /**
      * Listen for the model saving event and fire off the validation
@@ -53,11 +41,13 @@ abstract class Model extends IlluminateModel
     {
         parent::boot();
 
-        static::$validatorFactory = Container::getInstance()->make(Factory::class);
+        static::$validatorFactory = Container::getInstance()->make(ValidationFactory::class);
 
         static::saving(function (Model $model) {
-            if (! $model->validate()) {
-                throw new DataValidationException($model->getValidator());
+            try {
+                $model->validate();
+            } catch (ValidationException $exception) {
+                throw new DataValidationException($exception->validator, $model);
             }
 
             return true;
@@ -65,11 +55,23 @@ abstract class Model extends IlluminateModel
     }
 
     /**
-     * Set the model to skip validation when saving.
+     * Returns the model key to use for route model binding. By default, we'll
+     * assume every model uses a UUID field for this. If the model does not have
+     * a UUID and is using a different key it should be specified on the model
+     * itself.
      *
-     * @return $this
+     * You may also optionally override this on a per-route basis by declaring
+     * the key name in the URL definition, like "{user:id}".
      */
-    public function skipValidation()
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
+    /**
+     * Set the model to skip validation when saving.
+     */
+    public function skipValidation(): self
     {
         $this->skipValidation = true;
 
@@ -78,24 +80,19 @@ abstract class Model extends IlluminateModel
 
     /**
      * Returns the validator instance used by this model.
-     *
-     * @return \Illuminate\Validation\Validator|\Illuminate\Contracts\Validation\Validator
      */
-    public function getValidator()
+    public function getValidator(): \Illuminate\Validation\Validator
     {
-        $rules = $this->getKey() ? static::getRulesForUpdate($this) : static::getRules();
+        $rules = $this->exists ? static::getRulesForUpdate($this) : static::getRules();
 
-        return $this->validator ?: $this->validator = static::$validatorFactory->make(
-            [], $rules, [], []
-        );
+        // @phpstan-ignore-next-line return.type
+        return static::$validatorFactory->make([], $rules);
     }
 
     /**
      * Returns the rules associated with this model.
-     *
-     * @return array
      */
-    public static function getRules()
+    public static function getRules(): array
     {
         $rules = static::$validationRules;
         foreach ($rules as $key => &$rule) {
@@ -106,34 +103,39 @@ abstract class Model extends IlluminateModel
     }
 
     /**
+     * Returns the rules for a specific field. If the field is not found an empty
+     * array is returned.
+     */
+    public static function getRulesForField(string $field): array
+    {
+        return Arr::get(static::getRules(), $field) ?? [];
+    }
+
+    /**
      * Returns the rules associated with the model, specifically for updating the given model
      * rather than just creating it.
-     *
-     * @param \Illuminate\Database\Eloquent\Model|int|string $id
-     * @param string $primaryKey
-     * @return array
      */
-    public static function getRulesForUpdate($id, string $primaryKey = 'id')
+    public static function getRulesForUpdate($model, string $column = 'id'): array
     {
-        if ($id instanceof Model) {
-            [$primaryKey, $id] = [$id->getKeyName(), $id->getKey()];
+        if ($model instanceof Model) {
+            [$id, $column] = [$model->getKey(), $model->getKeyName()];
         }
 
         $rules = static::getRules();
         foreach ($rules as $key => &$data) {
             // For each rule in a given field, iterate over it and confirm if the rule
             // is one for a unique field. If that is the case, append the ID of the current
-            // working model so we don't run into errors due to the way that field validation
+            // working model, so we don't run into errors due to the way that field validation
             // works.
             foreach ($data as &$datum) {
-                if (! is_string($datum) || ! Str::startsWith($datum, 'unique')) {
+                if (!is_string($datum) || !Str::startsWith($datum, 'unique')) {
                     continue;
                 }
 
                 [, $args] = explode(':', $datum);
                 $args = explode(',', $args);
 
-                $datum = Rule::unique($args[0], $args[1] ?? $key)->ignore($id, $primaryKey)->__toString();
+                $datum = Rule::unique($args[0], $args[1] ?? $key)->ignore($id ?? $model, $column);
             }
         }
 
@@ -143,33 +145,36 @@ abstract class Model extends IlluminateModel
     /**
      * Determines if the model is in a valid state or not.
      *
-     * @return bool
+     * @throws ValidationException
      */
-    public function validate()
+    public function validate(): void
     {
         if ($this->skipValidation) {
-            return true;
+            return;
         }
 
-        return $this->getValidator()->setData(
-        // Trying to do self::toArray() here will leave out keys based on the whitelist/blacklist
-        // for that model. Doing this will return all of the attributes in a format that can
-        // properly be validated.
+        $validator = $this->getValidator();
+        $validator->setData(
+            // Trying to do self::toArray() here will leave out keys based on the whitelist/blacklist
+            // for that model. Doing this will return all the attributes in a format that can
+            // properly be validated.
             $this->addCastAttributesToArray(
-                $this->getAttributes(), $this->getMutatedAttributes()
+                $this->getAttributes(),
+                $this->getMutatedAttributes()
             )
-        )->passes();
+        );
+
+        if (!$validator->passes()) {
+            throw new ValidationException($validator);
+        }
     }
 
     /**
      * Return a timestamp as DateTime object.
-     *
-     * @param mixed $value
-     * @return \Illuminate\Support\Carbon|\Carbon\CarbonImmutable
      */
-    protected function asDateTime($value)
+    protected function asDateTime($value): Carbon|CarbonImmutable
     {
-        if (! $this->immutableDates) {
+        if (!$this->immutableDates) {
             return parent::asDateTime($value);
         }
 

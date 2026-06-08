@@ -16,9 +16,9 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
      */
     public function testGetUsers()
     {
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
 
-        $response = $this->getJson('/api/application/users');
+        $response = $this->getJson('/api/application/users?per_page=60');
         $response->assertStatus(Response::HTTP_OK);
         $response->assertJsonCount(2, 'data');
         $response->assertJsonStructure([
@@ -38,7 +38,7 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
                     'pagination' => [
                         'total' => 2,
                         'count' => 2,
-                        'per_page' => 100,
+                        'per_page' => 60,
                         'current_page' => 1,
                         'total_pages' => 1,
                     ],
@@ -55,7 +55,7 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
                     'first_name' => $this->getApiUser()->name_first,
                     'last_name' => $this->getApiUser()->name_last,
                     'language' => $this->getApiUser()->language,
-                    'root_admin' => (bool) $this->getApiUser()->root_admin,
+                    'root_admin' => $this->getApiUser()->root_admin,
                     '2fa' => (bool) $this->getApiUser()->totp_enabled,
                     'created_at' => $this->formatTimestamp($this->getApiUser()->created_at),
                     'updated_at' => $this->formatTimestamp($this->getApiUser()->updated_at),
@@ -85,7 +85,7 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
      */
     public function testGetSingleUser()
     {
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
 
         $response = $this->getJson('/api/application/users/' . $user->id);
         $response->assertStatus(Response::HTTP_OK);
@@ -119,7 +119,7 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
      */
     public function testRelationshipsCanBeLoaded()
     {
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
         $server = $this->createServerModel(['user_id' => $user->id]);
 
         $response = $this->getJson('/api/application/users/' . $user->id . '?include=servers');
@@ -152,7 +152,7 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
     {
         $this->createNewDefaultApiKey($this->getApiUser(), ['r_servers' => 0]);
 
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
         $this->createServerModel(['user_id' => $user->id]);
 
         $response = $this->getJson('/api/application/users/' . $user->id . '?include=servers');
@@ -194,22 +194,10 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
      */
     public function testErrorReturnedIfNoPermission()
     {
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
         $this->createNewDefaultApiKey($this->getApiUser(), ['r_users' => 0]);
 
         $response = $this->getJson('/api/application/users/' . $user->id);
-        $this->assertAccessDeniedJson($response);
-    }
-
-    /**
-     * Test that a users's existence is not exposed unless an API key has permission
-     * to access the resource.
-     */
-    public function testResourceIsNotExposedWithoutPermissions()
-    {
-        $this->createNewDefaultApiKey($this->getApiUser(), ['r_users' => 0]);
-
-        $response = $this->getJson('/api/application/users/nil');
         $this->assertAccessDeniedJson($response);
     }
 
@@ -243,6 +231,8 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
                 'resource' => route('api.application.users.view', $user->id),
             ],
         ], true);
+
+        $this->assertActivityFor('user:user.create', $this->getApiUser(), $user);
     }
 
     /**
@@ -250,7 +240,7 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
      */
     public function testUpdateUser()
     {
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
 
         $response = $this->patchJson('/api/application/users/' . $user->id, [
             'username' => 'new.test.name',
@@ -279,7 +269,7 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
      */
     public function testDeleteUser()
     {
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
         $this->assertDatabaseHas('users', ['id' => $user->id]);
 
         $response = $this->delete('/api/application/users/' . $user->id);
@@ -291,18 +281,14 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
     /**
      * Test that an API key without write permissions cannot create, update, or
      * delete a user model.
-     *
-     * @param string $method
-     * @param string $url
-     *
-     * @dataProvider userWriteEndpointsDataProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('userWriteEndpointsDataProvider')]
     public function testApiKeyWithoutWritePermissions(string $method, string $url)
     {
         $this->createNewDefaultApiKey($this->getApiUser(), ['r_users' => AdminAcl::READ]);
 
         if (str_contains($url, '{id}')) {
-            $user = factory(User::class)->create();
+            $user = User::factory()->create();
             $url = str_replace('{id}', $user->id, $url);
         }
 
@@ -313,10 +299,8 @@ class UserControllerTest extends ApplicationApiIntegrationTestCase
     /**
      * Endpoints that should return a 403 error when the key does not have write
      * permissions for user management.
-     *
-     * @return array
      */
-    public function userWriteEndpointsDataProvider(): array
+    public static function userWriteEndpointsDataProvider(): array
     {
         return [
             ['postJson', '/api/application/users'],

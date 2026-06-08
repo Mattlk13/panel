@@ -8,7 +8,6 @@ use Spatie\QueryBuilder\QueryBuilder;
 use Pterodactyl\Services\Nodes\NodeUpdateService;
 use Pterodactyl\Services\Nodes\NodeCreationService;
 use Pterodactyl\Services\Nodes\NodeDeletionService;
-use Pterodactyl\Contracts\Repository\NodeRepositoryInterface;
 use Pterodactyl\Transformers\Api\Application\NodeTransformer;
 use Pterodactyl\Http\Requests\Api\Application\Nodes\GetNodeRequest;
 use Pterodactyl\Http\Requests\Api\Application\Nodes\GetNodesRequest;
@@ -20,59 +19,25 @@ use Pterodactyl\Http\Controllers\Api\Application\ApplicationApiController;
 class NodeController extends ApplicationApiController
 {
     /**
-     * @var \Pterodactyl\Services\Nodes\NodeCreationService
-     */
-    private $creationService;
-
-    /**
-     * @var \Pterodactyl\Services\Nodes\NodeDeletionService
-     */
-    private $deletionService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\NodeRepositoryInterface
-     */
-    private $repository;
-
-    /**
-     * @var \Pterodactyl\Services\Nodes\NodeUpdateService
-     */
-    private $updateService;
-
-    /**
      * NodeController constructor.
-     *
-     * @param \Pterodactyl\Services\Nodes\NodeCreationService $creationService
-     * @param \Pterodactyl\Services\Nodes\NodeDeletionService $deletionService
-     * @param \Pterodactyl\Services\Nodes\NodeUpdateService $updateService
-     * @param \Pterodactyl\Contracts\Repository\NodeRepositoryInterface $repository
      */
     public function __construct(
-        NodeCreationService $creationService,
-        NodeDeletionService $deletionService,
-        NodeUpdateService $updateService,
-        NodeRepositoryInterface $repository
+        private NodeCreationService $creationService,
+        private NodeDeletionService $deletionService,
+        private NodeUpdateService $updateService,
     ) {
         parent::__construct();
-
-        $this->repository = $repository;
-        $this->creationService = $creationService;
-        $this->deletionService = $deletionService;
-        $this->updateService = $updateService;
     }
 
     /**
-     * Return all of the nodes currently available on the Panel.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Nodes\GetNodesRequest $request
-     * @return array
+     * Return all the nodes currently available on the Panel.
      */
     public function index(GetNodesRequest $request): array
     {
         $nodes = QueryBuilder::for(Node::query())
             ->allowedFilters(['uuid', 'name', 'fqdn', 'daemon_token_id'])
             ->allowedSorts(['id', 'uuid', 'memory', 'disk'])
-            ->paginate(100);
+            ->paginate($request->query('per_page') ?? 50);
 
         return $this->fractal->collection($nodes)
             ->transformWith($this->getTransformer(NodeTransformer::class))
@@ -81,10 +46,6 @@ class NodeController extends ApplicationApiController
 
     /**
      * Return data for a single instance of a node.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Nodes\GetNodeRequest $request
-     * @param \Pterodactyl\Models\Node $node
-     * @return array
      */
     public function view(GetNodeRequest $request, Node $node): array
     {
@@ -94,11 +55,8 @@ class NodeController extends ApplicationApiController
     }
 
     /**
-     * Create a new node on the Panel. Returns the created node and a HTTP/201
+     * Create a new node on the Panel. Returns the created node and an HTTP/201
      * status response on success.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Nodes\StoreNodeRequest $request
-     * @return \Illuminate\Http\JsonResponse
      *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      */
@@ -119,16 +77,14 @@ class NodeController extends ApplicationApiController
     /**
      * Update an existing node on the Panel.
      *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Nodes\UpdateNodeRequest $request
-     * @param \Pterodactyl\Models\Node $node
-     * @return array
-     *
      * @throws \Throwable
      */
     public function update(UpdateNodeRequest $request, Node $node): array
     {
         $node = $this->updateService->handle(
-            $node, $request->validated(), $request->input('reset_secret') === true
+            $node,
+            $request->validated(),
+            $request->input('reset_secret') === true
         );
 
         return $this->fractal->item($node)
@@ -139,10 +95,6 @@ class NodeController extends ApplicationApiController
     /**
      * Deletes a given node from the Panel as long as there are no servers
      * currently attached to it.
-     *
-     * @param \Pterodactyl\Http\Requests\Api\Application\Nodes\DeleteNodeRequest $request
-     * @param \Pterodactyl\Models\Node $node
-     * @return \Illuminate\Http\JsonResponse
      *
      * @throws \Pterodactyl\Exceptions\Service\HasActiveServersException
      */

@@ -2,18 +2,16 @@
 
 namespace Pterodactyl\Http\Controllers\Admin\Servers;
 
-use JavaScript;
+use Illuminate\View\View;
 use Illuminate\Http\Request;
 use Pterodactyl\Models\Nest;
 use Pterodactyl\Models\Server;
-use Illuminate\Contracts\View\Factory;
 use Pterodactyl\Exceptions\DisplayException;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Services\Servers\EnvironmentService;
 use Pterodactyl\Repositories\Eloquent\NestRepository;
 use Pterodactyl\Repositories\Eloquent\NodeRepository;
 use Pterodactyl\Repositories\Eloquent\MountRepository;
-use Pterodactyl\Repositories\Eloquent\ServerRepository;
 use Pterodactyl\Traits\Controllers\JavascriptInjection;
 use Pterodactyl\Repositories\Eloquent\LocationRepository;
 use Pterodactyl\Repositories\Eloquent\DatabaseHostRepository;
@@ -23,113 +21,42 @@ class ServerViewController extends Controller
     use JavascriptInjection;
 
     /**
-     * @var \Illuminate\Contracts\View\Factory
-     */
-    private $view;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\DatabaseHostRepository
-     */
-    private $databaseHostRepository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\ServerRepository
-     */
-    private $repository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\MountRepository
-     */
-    protected $mountRepository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\NestRepository
-     */
-    private $nestRepository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\LocationRepository
-     */
-    private $locationRepository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\NodeRepository
-     */
-    private $nodeRepository;
-
-    /**
-     * @var \Pterodactyl\Services\Servers\EnvironmentService
-     */
-    private $environmentService;
-
-    /**
      * ServerViewController constructor.
-     *
-     * @param \Illuminate\Contracts\View\Factory $view
-     * @param \Pterodactyl\Repositories\Eloquent\DatabaseHostRepository $databaseHostRepository
-     * @param \Pterodactyl\Repositories\Eloquent\LocationRepository $locationRepository
-     * @param \Pterodactyl\Repositories\Eloquent\MountRepository $mountRepository
-     * @param \Pterodactyl\Repositories\Eloquent\NestRepository $nestRepository
-     * @param \Pterodactyl\Repositories\Eloquent\NodeRepository $nodeRepository
-     * @param \Pterodactyl\Repositories\Eloquent\ServerRepository $repository
-     * @param \Pterodactyl\Services\Servers\EnvironmentService $environmentService
      */
     public function __construct(
-        Factory $view,
-        DatabaseHostRepository $databaseHostRepository,
-        LocationRepository $locationRepository,
-        MountRepository $mountRepository,
-        NestRepository $nestRepository,
-        NodeRepository $nodeRepository,
-        ServerRepository $repository,
-        EnvironmentService $environmentService
+        private DatabaseHostRepository $databaseHostRepository,
+        private LocationRepository $locationRepository,
+        private MountRepository $mountRepository,
+        private NestRepository $nestRepository,
+        private NodeRepository $nodeRepository,
+        private EnvironmentService $environmentService,
     ) {
-        $this->view = $view;
-        $this->databaseHostRepository = $databaseHostRepository;
-        $this->locationRepository = $locationRepository;
-        $this->mountRepository = $mountRepository;
-        $this->nestRepository = $nestRepository;
-        $this->nodeRepository = $nodeRepository;
-        $this->repository = $repository;
-        $this->environmentService = $environmentService;
     }
 
     /**
      * Returns the index view for a server.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Server $server
-     * @return \Illuminate\Contracts\View\View
      */
-    public function index(Request $request, Server $server)
+    public function index(Request $request, Server $server): View
     {
-        return $this->view->make('admin.servers.view.index', compact('server'));
+        return view('admin.servers.view.index', compact('server'));
     }
 
     /**
      * Returns the server details page.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Server $server
-     * @return \Illuminate\Contracts\View\View
      */
-    public function details(Request $request, Server $server)
+    public function details(Request $request, Server $server): View
     {
-        return $this->view->make('admin.servers.view.details', compact('server'));
+        return view('admin.servers.view.details', compact('server'));
     }
 
     /**
      * Returns a view of server build settings.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Server $server
-     * @return \Illuminate\Contracts\View\View
      */
-    public function build(Request $request, Server $server)
+    public function build(Request $request, Server $server): View
     {
         $allocations = $server->node->allocations->toBase();
 
-        return $this->view->make('admin.servers.view.build', [
+        return view('admin.servers.view.build', [
             'server' => $server,
             'assigned' => $allocations->where('server_id', $server->id)->sortBy('port')->sortBy('ip'),
             'unassigned' => $allocations->where('server_id', null)->sortBy('port')->sortBy('ip'),
@@ -139,13 +66,9 @@ class ServerViewController extends Controller
     /**
      * Returns the server startup management page.
      *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Server $server
-     * @return \Illuminate\Contracts\View\View
-     *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
-    public function startup(Request $request, Server $server)
+    public function startup(Request $request, Server $server): View
     {
         $nests = $this->nestRepository->getWithEggs();
         $variables = $this->environmentService->handle($server);
@@ -160,36 +83,28 @@ class ServerViewController extends Controller
             })->keyBy('id'),
         ]);
 
-        return $this->view->make('admin.servers.view.startup', compact('server', 'nests'));
+        return view('admin.servers.view.startup', compact('server', 'nests'));
     }
 
     /**
-     * Returns all of the databases that exist for the server.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Server $server
-     * @return \Illuminate\Contracts\View\View
+     * Returns all the databases that exist for the server.
      */
-    public function database(Request $request, Server $server)
+    public function database(Request $request, Server $server): View
     {
-        return $this->view->make('admin.servers.view.database', [
+        return view('admin.servers.view.database', [
             'hosts' => $this->databaseHostRepository->all(),
             'server' => $server,
         ]);
     }
 
     /**
-     * Returns all of the mounts that exist for the server.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Server $server
-     * @return \Illuminate\Contracts\View\View
+     * Returns all the mounts that exist for the server.
      */
-    public function mounts(Request $request, Server $server)
+    public function mounts(Request $request, Server $server): View
     {
         $server->load('mounts');
 
-        return $this->view->make('admin.servers.view.mounts', [
+        return view('admin.servers.view.mounts', [
             'mounts' => $this->mountRepository->getMountListForServer($server),
             'server' => $server,
         ]);
@@ -199,18 +114,12 @@ class ServerViewController extends Controller
      * Returns the base server management page, or an exception if the server
      * is in a state that cannot be recovered from.
      *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Server $server
-     * @return \Illuminate\Contracts\View\View
-     *
-     * @throws \Pterodactyl\Exceptions\DisplayException
+     * @throws DisplayException
      */
-    public function manage(Request $request, Server $server)
+    public function manage(Request $request, Server $server): View
     {
-        if ($server->installed > 1) {
-            throw new DisplayException(
-                'This server is in a failed install state and cannot be recovered. Please delete and re-create the server.'
-            );
+        if ($server->status === Server::STATUS_INSTALL_FAILED) {
+            throw new DisplayException('This server is in a failed install state and cannot be recovered. Please delete and re-create the server.');
         }
 
         // Check if the panel doesn't have at least 2 nodes configured.
@@ -220,11 +129,11 @@ class ServerViewController extends Controller
             $canTransfer = true;
         }
 
-        Javascript::put([
+        \JavaScript::put([
             'nodeData' => $this->nodeRepository->getNodesForServerCreation(),
         ]);
 
-        return $this->view->make('admin.servers.view.manage', [
+        return view('admin.servers.view.manage', [
             'server' => $server,
             'locations' => $this->locationRepository->all(),
             'canTransfer' => $canTransfer,
@@ -233,13 +142,9 @@ class ServerViewController extends Controller
 
     /**
      * Returns the server deletion page.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \Pterodactyl\Models\Server $server
-     * @return \Illuminate\Contracts\View\View
      */
-    public function delete(Request $request, Server $server)
+    public function delete(Request $request, Server $server): View
     {
-        return $this->view->make('admin.servers.view.delete', compact('server'));
+        return view('admin.servers.view.delete', compact('server'));
     }
 }

@@ -2,12 +2,10 @@
 
 namespace Pterodactyl\Tests\Integration\Services\Databases;
 
-use Mockery;
+use Mockery\MockInterface;
 use Pterodactyl\Models\Node;
-use InvalidArgumentException;
 use Pterodactyl\Models\Database;
 use Pterodactyl\Models\DatabaseHost;
-use Symfony\Component\VarDumper\Cloner\Data;
 use Pterodactyl\Tests\Integration\IntegrationTestCase;
 use Pterodactyl\Services\Databases\DatabaseManagementService;
 use Pterodactyl\Services\Databases\DeployServerDatabaseService;
@@ -15,8 +13,7 @@ use Pterodactyl\Exceptions\Service\Database\NoSuitableDatabaseHostException;
 
 class DeployServerDatabaseServiceTest extends IntegrationTestCase
 {
-    /** @var \Mockery\MockInterface */
-    private $managementService;
+    private MockInterface $managementService;
 
     /**
      * Setup tests.
@@ -25,7 +22,7 @@ class DeployServerDatabaseServiceTest extends IntegrationTestCase
     {
         parent::setUp();
 
-        $this->managementService = Mockery::mock(DatabaseManagementService::class);
+        $this->managementService = \Mockery::mock(DatabaseManagementService::class);
         $this->swap(DatabaseManagementService::class, $this->managementService);
     }
 
@@ -44,16 +41,14 @@ class DeployServerDatabaseServiceTest extends IntegrationTestCase
 
     /**
      * Test that an error is thrown if either the database name or the remote host are empty.
-     *
-     * @param array $data
-     * @dataProvider invalidDataProvider
      */
-    public function testErrorIsThrownIfDatabaseNameIsEmpty($data)
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidDataProvider')]
+    public function testErrorIsThrownIfDatabaseNameIsEmpty(array $data)
     {
         $server = $this->createServerModel();
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches('/^Expected a non-empty value\. Got: /',);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/^Expected a non-empty value\. Got: /');
         $this->getService()->handle($server, $data);
     }
 
@@ -65,8 +60,8 @@ class DeployServerDatabaseServiceTest extends IntegrationTestCase
     {
         $server = $this->createServerModel();
 
-        $node = factory(Node::class)->create(['location_id' => $server->location->id]);
-        factory(DatabaseHost::class)->create(['node_id' => $node->id]);
+        $node = Node::factory()->create(['location_id' => $server->location->id]);
+        DatabaseHost::factory()->create(['node_id' => $node->id]);
 
         config()->set('pterodactyl.client_features.databases.allow_random', false);
 
@@ -100,15 +95,15 @@ class DeployServerDatabaseServiceTest extends IntegrationTestCase
     {
         $server = $this->createServerModel();
 
-        $node = factory(Node::class)->create(['location_id' => $server->location->id]);
-        factory(DatabaseHost::class)->create(['node_id' => $node->id]);
-        $host = factory(DatabaseHost::class)->create(['node_id' => $server->node_id]);
+        $node = Node::factory()->create(['location_id' => $server->location->id]);
+        DatabaseHost::factory()->create(['node_id' => $node->id]);
+        $host = DatabaseHost::factory()->create(['node_id' => $server->node_id]);
 
         $this->managementService->expects('create')->with($server, [
             'database_host_id' => $host->id,
             'database' => "s{$server->id}_something",
             'remote' => '%',
-        ])->andReturns(new Database);
+        ])->andReturns(new Database());
 
         $response = $this->getService()->handle($server, [
             'database' => 'something',
@@ -127,14 +122,14 @@ class DeployServerDatabaseServiceTest extends IntegrationTestCase
     {
         $server = $this->createServerModel();
 
-        $node = factory(Node::class)->create(['location_id' => $server->location->id]);
-        $host = factory(DatabaseHost::class)->create(['node_id' => $node->id]);
+        $node = Node::factory()->create(['location_id' => $server->location->id]);
+        $host = DatabaseHost::factory()->create(['node_id' => $node->id]);
 
         $this->managementService->expects('create')->with($server, [
             'database_host_id' => $host->id,
             'database' => "s{$server->id}_something",
             'remote' => '%',
-        ])->andReturns(new Database);
+        ])->andReturns(new Database());
 
         $response = $this->getService()->handle($server, [
             'database' => 'something',
@@ -144,10 +139,7 @@ class DeployServerDatabaseServiceTest extends IntegrationTestCase
         $this->assertInstanceOf(Database::class, $response);
     }
 
-    /**
-     * @return array
-     */
-    public function invalidDataProvider(): array
+    public static function invalidDataProvider(): array
     {
         return [
             [['remote' => '%']],
@@ -158,10 +150,7 @@ class DeployServerDatabaseServiceTest extends IntegrationTestCase
         ];
     }
 
-    /**
-     * @return \Pterodactyl\Services\Databases\DeployServerDatabaseService
-     */
-    private function getService()
+    private function getService(): DeployServerDatabaseService
     {
         return $this->app->make(DeployServerDatabaseService::class);
     }

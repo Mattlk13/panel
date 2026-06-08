@@ -22,30 +22,27 @@ class GetServerSchedulesTest extends ClientApiIntegrationTestCase
 
     /**
      * Test that schedules for a server are returned.
-     *
-     * @param array $permissions
-     * @param bool $individual
-     * @dataProvider permissionsDataProvider
      */
-    public function testServerSchedulesAreReturned($permissions, $individual)
+    #[\PHPUnit\Framework\Attributes\DataProvider('permissionsDataProvider')]
+    public function testServerSchedulesAreReturned(array $permissions, bool $individual)
     {
         [$user, $server] = $this->generateTestAccount($permissions);
 
-        /** @var \Pterodactyl\Models\Schedule $schedule */
-        $schedule = factory(Schedule::class)->create(['server_id' => $server->id]);
-        /** @var \Pterodactyl\Models\Task $task */
-        $task = factory(Task::class)->create(['schedule_id' => $schedule->id, 'sequence_id' => 1, 'time_offset' => 0]);
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
+        /** @var Task $task */
+        $task = Task::factory()->create(['schedule_id' => $schedule->id, 'sequence_id' => 1, 'time_offset' => 0]);
 
         $response = $this->actingAs($user)
             ->getJson(
                 $individual
-                    ? "/api/client/servers/{$server->uuid}/schedules/{$schedule->id}"
-                    : "/api/client/servers/{$server->uuid}/schedules"
+                    ? "/api/client/servers/$server->uuid/schedules/$schedule->id"
+                    : "/api/client/servers/$server->uuid/schedules"
             )
             ->assertOk();
 
         $prefix = $individual ? '' : 'data.0.';
-        if (! $individual) {
+        if (!$individual) {
             $response->assertJsonCount(1, 'data');
         }
 
@@ -64,12 +61,12 @@ class GetServerSchedulesTest extends ClientApiIntegrationTestCase
     public function testScheduleBelongingToAnotherServerCannotBeViewed()
     {
         [$user, $server] = $this->generateTestAccount();
-        [, $server2] = $this->generateTestAccount(['user_id' => $user->id]);
+        $server2 = $this->createServerModel(['owner_id' => $user->id]);
 
-        $schedule = factory(Schedule::class)->create(['server_id' => $server2->id]);
+        $schedule = Schedule::factory()->create(['server_id' => $server2->id]);
 
         $this->actingAs($user)
-            ->getJson("/api/client/servers/{$server->uuid}/schedules/{$schedule->id}")
+            ->getJson("/api/client/servers/$server->uuid/schedules/$schedule->id")
             ->assertNotFound();
     }
 
@@ -81,20 +78,17 @@ class GetServerSchedulesTest extends ClientApiIntegrationTestCase
         [$user, $server] = $this->generateTestAccount([Permission::ACTION_WEBSOCKET_CONNECT]);
 
         $this->actingAs($user)
-            ->getJson("/api/client/servers/{$server->uuid}/schedules")
+            ->getJson("/api/client/servers/$server->uuid/schedules")
             ->assertForbidden();
 
-        $schedule = factory(Schedule::class)->create(['server_id' => $server->id]);
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
 
         $this->actingAs($user)
-            ->getJson("/api/client/servers/{$server->uuid}/schedules/{$schedule->id}")
+            ->getJson("/api/client/servers/$server->uuid/schedules/$schedule->id")
             ->assertForbidden();
     }
 
-    /**
-     * @return array
-     */
-    public function permissionsDataProvider(): array
+    public static function permissionsDataProvider(): array
     {
         return [
             [[], false],

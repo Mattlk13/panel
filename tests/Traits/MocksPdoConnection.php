@@ -1,33 +1,29 @@
 <?php
 
-namespace Tests\Traits;
+namespace Pterodactyl\Tests\Traits;
 
 use PDO;
 use Mockery;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\MySqlConnection;
 use Illuminate\Database\ConnectionResolver;
+use Illuminate\Database\ConnectionResolverInterface;
 
 trait MocksPdoConnection
 {
-    /**
-     * @var \Illuminate\Database\ConnectionResolverInterface|null
-     */
-    private static $initialResolver;
+    private static ?ConnectionResolverInterface $initialResolver;
 
     /**
      * Generates a mock PDO connection and injects it into the models so that any actual
      * DB call can be properly intercepted.
-     *
-     * @return \Mockery\MockInterface
      */
-    protected function mockPdoConnection()
+    protected function mockPdoConnection(): Mockery\MockInterface
     {
         self::$initialResolver = Model::getConnectionResolver();
 
         Model::unsetConnectionResolver();
 
-        $connection = new MySqlConnection($mock = Mockery::mock(PDO::class), 'testing_mock');
+        $connection = new MySqlConnection($mock = \Mockery::mock(\PDO::class), 'testing_mock');
         $resolver = new ConnectionResolver(['mocked' => $connection]);
         $resolver->setDefaultConnection('mocked');
 
@@ -39,9 +35,9 @@ trait MocksPdoConnection
     /**
      * Resets the mock state.
      */
-    protected function tearDownPdoMock()
+    protected function tearDownPdoMock(): void
     {
-        if (! self::$initialResolver) {
+        if (!self::$initialResolver) {
             return;
         }
 

@@ -8,12 +8,10 @@ class UpdateServerDetailsRequest extends ServerWriteRequest
 {
     /**
      * Rules to apply to a server details update request.
-     *
-     * @return array
      */
     public function rules(): array
     {
-        $rules = Server::getRulesForUpdate($this->getModel(Server::class));
+        $rules = Server::getRulesForUpdate($this->parameter('server', Server::class));
 
         return [
             'external_id' => $rules['external_id'],
@@ -26,10 +24,8 @@ class UpdateServerDetailsRequest extends ServerWriteRequest
     /**
      * Convert the posted data into the correct format that is expected
      * by the application.
-     *
-     * @return array
      */
-    public function validated(): array
+    public function validated($key = null, $default = null): array
     {
         return [
             'external_id' => $this->input('external_id'),
@@ -40,10 +36,8 @@ class UpdateServerDetailsRequest extends ServerWriteRequest
     }
 
     /**
-     * Rename some of the attributes in error messages to clarify the field
+     * Rename some attributes in error messages to clarify the field
      * being discussed.
-     *
-     * @return array
      */
     public function attributes(): array
     {

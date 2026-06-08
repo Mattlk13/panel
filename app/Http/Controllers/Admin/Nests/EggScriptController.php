@@ -6,6 +6,7 @@ use Illuminate\View\View;
 use Pterodactyl\Models\Egg;
 use Illuminate\Http\RedirectResponse;
 use Prologue\Alerts\AlertsMessageBag;
+use Illuminate\View\Factory as ViewFactory;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Services\Eggs\Scripts\InstallScriptService;
 use Pterodactyl\Contracts\Repository\EggRepositoryInterface;
@@ -14,42 +15,18 @@ use Pterodactyl\Http\Requests\Admin\Egg\EggScriptFormRequest;
 class EggScriptController extends Controller
 {
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    protected $alert;
-
-    /**
-     * @var \Pterodactyl\Services\Eggs\Scripts\InstallScriptService
-     */
-    protected $installScriptService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\EggRepositoryInterface
-     */
-    protected $repository;
-
-    /**
      * EggScriptController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Pterodactyl\Contracts\Repository\EggRepositoryInterface $repository
-     * @param \Pterodactyl\Services\Eggs\Scripts\InstallScriptService $installScriptService
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        EggRepositoryInterface $repository,
-        InstallScriptService $installScriptService
+        protected AlertsMessageBag $alert,
+        protected EggRepositoryInterface $repository,
+        protected InstallScriptService $installScriptService,
+        protected ViewFactory $view,
     ) {
-        $this->alert = $alert;
-        $this->installScriptService = $installScriptService;
-        $this->repository = $repository;
     }
 
     /**
      * Handle requests to render installation script for an Egg.
-     *
-     * @param int $egg
-     * @return \Illuminate\View\View
      */
     public function index(int $egg): View
     {
@@ -73,10 +50,6 @@ class EggScriptController extends Controller
 
     /**
      * Handle a request to update the installation script for an Egg.
-     *
-     * @param \Pterodactyl\Http\Requests\Admin\Egg\EggScriptFormRequest $request
-     * @param \Pterodactyl\Models\Egg $egg
-     * @return \Illuminate\Http\RedirectResponse
      *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException

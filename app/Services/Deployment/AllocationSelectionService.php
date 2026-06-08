@@ -10,45 +10,25 @@ use Pterodactyl\Exceptions\Service\Deployment\NoViableAllocationException;
 
 class AllocationSelectionService
 {
-    /**
-     * @var \Pterodactyl\Contracts\Repository\AllocationRepositoryInterface
-     */
-    private $repository;
+    protected bool $dedicated = false;
 
-    /**
-     * @var bool
-     */
-    protected $dedicated = false;
+    protected array $nodes = [];
 
-    /**
-     * @var array
-     */
-    protected $nodes = [];
-
-    /**
-     * @var array
-     */
-    protected $ports = [];
+    protected array $ports = [];
 
     /**
      * AllocationSelectionService constructor.
-     *
-     * @param \Pterodactyl\Contracts\Repository\AllocationRepositoryInterface $repository
      */
-    public function __construct(AllocationRepositoryInterface $repository)
+    public function __construct(private AllocationRepositoryInterface $repository)
     {
-        $this->repository = $repository;
     }
 
     /**
      * Toggle if the selected allocation should be the only allocation belonging
      * to the given IP address. If true an allocation will not be selected if an IP
      * already has another server set to use on if its allocations.
-     *
-     * @param bool $dedicated
-     * @return $this
      */
-    public function setDedicated(bool $dedicated)
+    public function setDedicated(bool $dedicated): self
     {
         $this->dedicated = $dedicated;
 
@@ -58,11 +38,8 @@ class AllocationSelectionService
     /**
      * A list of node IDs that should be used when selecting an allocation. If empty, all
      * nodes will be used to filter with.
-     *
-     * @param array $nodes
-     * @return $this
      */
-    public function setNodes(array $nodes)
+    public function setNodes(array $nodes): self
     {
         $this->nodes = $nodes;
 
@@ -74,12 +51,9 @@ class AllocationSelectionService
      * empty, all ports will be considered when finding an allocation. If set, only ports appearing
      * in the array or range will be used.
      *
-     * @param array $ports
-     * @return $this
-     *
-     * @throws \Pterodactyl\Exceptions\DisplayException
+     * @throws DisplayException
      */
-    public function setPorts(array $ports)
+    public function setPorts(array $ports): self
     {
         $stored = [];
         foreach ($ports as $port) {
@@ -106,9 +80,7 @@ class AllocationSelectionService
     /**
      * Return a single allocation that should be used as the default allocation for a server.
      *
-     * @return \Pterodactyl\Models\Allocation
-     *
-     * @throws \Pterodactyl\Exceptions\Service\Deployment\NoViableAllocationException
+     * @throws NoViableAllocationException
      */
     public function handle(): Allocation
     {

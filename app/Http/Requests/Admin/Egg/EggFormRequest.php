@@ -1,11 +1,4 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Http\Requests\Admin\Egg;
 
@@ -13,15 +6,15 @@ use Pterodactyl\Http\Requests\Admin\AdminFormRequest;
 
 class EggFormRequest extends AdminFormRequest
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function rules()
+    public function rules(): array
     {
         $rules = [
             'name' => 'required|string|max:191',
             'description' => 'nullable|string',
-            'docker_image' => 'required|string|max:191',
+            'docker_images' => ['required', 'string', 'regex:/^[\w#\.\/\- ]*\|?~?[\w\.\/\-:@ ]*$/im'],
+            'force_outgoing_ip' => 'sometimes|boolean',
+            'file_denylist' => 'array',
+            'features' => 'sometimes|array',
             'startup' => 'required|string',
             'config_from' => 'sometimes|bail|nullable|numeric',
             'config_stop' => 'required_without:config_from|nullable|string|max:191',
@@ -37,13 +30,20 @@ class EggFormRequest extends AdminFormRequest
         return $rules;
     }
 
-    /**
-     * @param \Illuminate\Contracts\Validation\Validator $validator
-     */
     public function withValidator($validator)
     {
         $validator->sometimes('config_from', 'exists:eggs,id', function () {
             return (int) $this->input('config_from') !== 0;
         });
+    }
+
+    public function validated($key = null, $default = null): array
+    {
+        $data = parent::validated();
+
+        return array_merge($data, [
+            'force_outgoing_ip' => array_get($data, 'force_outgoing_ip', false),
+            'features' => array_get($data, 'features', []),
+        ]);
     }
 }

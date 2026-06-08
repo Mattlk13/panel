@@ -3,21 +3,25 @@
 namespace Pterodactyl\Repositories\Wings;
 
 use Pterodactyl\Models\Node;
+use Psr\Http\Message\ResponseInterface;
 use GuzzleHttp\Exception\TransferException;
 use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
 
+/**
+ * @method \Pterodactyl\Repositories\Wings\DaemonConfigurationRepository setNode(\Pterodactyl\Models\Node $node)
+ * @method \Pterodactyl\Repositories\Wings\DaemonConfigurationRepository setServer(\Pterodactyl\Models\Server $server)
+ */
 class DaemonConfigurationRepository extends DaemonRepository
 {
     /**
      * Returns system information from the wings instance.
      *
-     * @return array
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
-    public function getSystemInformation(): array
+    public function getSystemInformation(?int $version = null): array
     {
         try {
-            $response = $this->getHttpClient()->get('/api/system');
+            $response = $this->getHttpClient()->get('/api/system' . (!is_null($version) ? '?v=' . $version : ''));
         } catch (TransferException $exception) {
             throw new DaemonConnectionException($exception);
         }
@@ -30,15 +34,14 @@ class DaemonConfigurationRepository extends DaemonRepository
      * this instance using a passed-in model. This allows us to change plenty of information
      * in the model, and still use the old, pre-update model to actually make the HTTP request.
      *
-     * @param \Pterodactyl\Models\Node $node
-     * @return \Psr\Http\Message\ResponseInterface
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
-    public function update(Node $node)
+    public function update(Node $node): ResponseInterface
     {
         try {
             return $this->getHttpClient()->post(
-                '/api/update', ['json' => $node->getConfiguration()]
+                '/api/update',
+                ['json' => $node->getConfiguration()]
             );
         } catch (TransferException $exception) {
             throw new DaemonConnectionException($exception);

@@ -8,26 +8,16 @@ use Pterodactyl\Services\Helpers\AssetHashService;
 class AssetComposer
 {
     /**
-     * @var \Pterodactyl\Services\Helpers\AssetHashService
-     */
-    private $assetHashService;
-
-    /**
      * AssetComposer constructor.
-     *
-     * @param \Pterodactyl\Services\Helpers\AssetHashService $assetHashService
      */
-    public function __construct(AssetHashService $assetHashService)
+    public function __construct(private AssetHashService $assetHashService)
     {
-        $this->assetHashService = $assetHashService;
     }
 
     /**
      * Provide access to the asset service in the views.
-     *
-     * @param \Illuminate\View\View $view
      */
-    public function compose(View $view)
+    public function compose(View $view): void
     {
         $view->with('asset', $this->assetHashService);
         $view->with('siteConfiguration', [
@@ -37,7 +27,6 @@ class AssetComposer
                 'enabled' => config('recaptcha.enabled', false),
                 'siteKey' => config('recaptcha.website_key') ?? '',
             ],
-            'analytics' => config('app.analytics') ?? '',
         ]);
     }
 }

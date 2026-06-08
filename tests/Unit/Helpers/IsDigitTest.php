@@ -1,23 +1,15 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
-namespace Tests\Unit\Helpers;
+namespace Pterodactyl\Tests\Unit\Helpers;
 
-use Tests\TestCase;
+use Pterodactyl\Tests\TestCase;
 
 class IsDigitTest extends TestCase
 {
     /**
      * Test the is_digit helper.
-     *
-     * @dataProvider helperDataProvider
      */
+    #[\PHPUnit\Framework\Attributes\DataProvider('helperDataProvider')]
     public function testHelper($value, $response)
     {
         $this->assertSame($response, is_digit($value));
@@ -25,10 +17,8 @@ class IsDigitTest extends TestCase
 
     /**
      * Provide data to test against the helper function.
-     *
-     * @return array
      */
-    public function helperDataProvider()
+    public static function helperDataProvider(): array
     {
         return [
             [true, false],

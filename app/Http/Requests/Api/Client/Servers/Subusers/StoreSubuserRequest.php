@@ -6,21 +6,15 @@ use Pterodactyl\Models\Permission;
 
 class StoreSubuserRequest extends SubuserRequest
 {
-    /**
-     * @return string
-     */
-    public function permission()
+    public function permission(): string
     {
         return Permission::ACTION_USER_CREATE;
     }
 
-    /**
-     * @return array
-     */
     public function rules(): array
     {
         return [
-            'email' => 'required|email|between:1,191',
+            'email' => 'required|email:strict|between:1,191',
             'permissions' => 'required|array',
             'permissions.*' => 'string',
         ];

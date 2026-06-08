@@ -3,21 +3,20 @@
 namespace Pterodactyl\Transformers\Api\Application;
 
 use Pterodactyl\Models\Node;
+use League\Fractal\Resource\Item;
+use League\Fractal\Resource\Collection;
+use League\Fractal\Resource\NullResource;
 use Pterodactyl\Services\Acl\Api\AdminAcl;
 
 class NodeTransformer extends BaseTransformer
 {
     /**
      * List of resources that can be included.
-     *
-     * @var array
      */
-    protected $availableIncludes = ['allocations', 'location', 'servers'];
+    protected array $availableIncludes = ['allocations', 'location', 'servers'];
 
     /**
      * Return the resource name for the JSONAPI output.
-     *
-     * @return string
      */
     public function getResourceName(): string
     {
@@ -27,9 +26,6 @@ class NodeTransformer extends BaseTransformer
     /**
      * Return a node transformed into a format that can be consumed by the
      * external administrative API.
-     *
-     * @param \Pterodactyl\Models\Node $node
-     * @return array
      */
     public function transform(Node $node): array
     {
@@ -57,60 +53,60 @@ class NodeTransformer extends BaseTransformer
     /**
      * Return the nodes associated with this location.
      *
-     * @param \Pterodactyl\Models\Node $node
-     * @return \League\Fractal\Resource\Collection|\League\Fractal\Resource\NullResource
      * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
      */
-    public function includeAllocations(Node $node)
+    public function includeAllocations(Node $node): Collection|NullResource
     {
-        if (! $this->authorize(AdminAcl::RESOURCE_ALLOCATIONS)) {
+        if (!$this->authorize(AdminAcl::RESOURCE_ALLOCATIONS)) {
             return $this->null();
         }
 
         $node->loadMissing('allocations');
 
         return $this->collection(
-            $node->getRelation('allocations'), $this->makeTransformer(AllocationTransformer::class), 'allocation'
+            $node->getRelation('allocations'),
+            $this->makeTransformer(AllocationTransformer::class),
+            'allocation'
         );
     }
 
     /**
      * Return the nodes associated with this location.
      *
-     * @param \Pterodactyl\Models\Node $node
-     * @return \League\Fractal\Resource\Item|\League\Fractal\Resource\NullResource
      * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
      */
-    public function includeLocation(Node $node)
+    public function includeLocation(Node $node): Item|NullResource
     {
-        if (! $this->authorize(AdminAcl::RESOURCE_LOCATIONS)) {
+        if (!$this->authorize(AdminAcl::RESOURCE_LOCATIONS)) {
             return $this->null();
         }
 
         $node->loadMissing('location');
 
         return $this->item(
-            $node->getRelation('location'), $this->makeTransformer(LocationTransformer::class), 'location'
+            $node->getRelation('location'),
+            $this->makeTransformer(LocationTransformer::class),
+            'location'
         );
     }
 
     /**
      * Return the nodes associated with this location.
      *
-     * @param \Pterodactyl\Models\Node $node
-     * @return \League\Fractal\Resource\Collection|\League\Fractal\Resource\NullResource
      * @throws \Pterodactyl\Exceptions\Transformer\InvalidTransformerLevelException
      */
-    public function includeServers(Node $node)
+    public function includeServers(Node $node): Collection|NullResource
     {
-        if (! $this->authorize(AdminAcl::RESOURCE_SERVERS)) {
+        if (!$this->authorize(AdminAcl::RESOURCE_SERVERS)) {
             return $this->null();
         }
 
         $node->loadMissing('servers');
 
         return $this->collection(
-            $node->getRelation('servers'), $this->makeTransformer(ServerTransformer::class), 'server'
+            $node->getRelation('servers'),
+            $this->makeTransformer(ServerTransformer::class),
+            'server'
         );
     }
 }

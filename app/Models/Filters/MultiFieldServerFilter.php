@@ -2,7 +2,6 @@
 
 namespace Pterodactyl\Models\Filters;
 
-use BadMethodCallException;
 use Illuminate\Support\Str;
 use Spatie\QueryBuilder\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,16 +19,12 @@ class MultiFieldServerFilter implements Filter
      * search across multiple columns. This allows us to provide a very generic search ability for
      * the frontend.
      *
-     * @param \Illuminate\Database\Eloquent\Builder $query
      * @param string $value
-     * @param string $property
      */
     public function __invoke(Builder $query, $value, string $property)
     {
         if ($query->getQuery()->from !== 'servers') {
-            throw new BadMethodCallException(
-                'Cannot use the MultiFieldServerFilter against a non-server model.'
-            );
+            throw new \BadMethodCallException('Cannot use the MultiFieldServerFilter against a non-server model.');
         }
 
         if (preg_match(self::IPV4_REGEX, $value) || preg_match('/^:\d{1,5}$/', $value)) {

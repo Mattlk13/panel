@@ -2,10 +2,13 @@
 
 namespace Pterodactyl\Tests\Integration\Api\Client;
 
-use Mockery;
+use Illuminate\Support\Str;
 use Pterodactyl\Models\User;
 use Illuminate\Http\Response;
-use Illuminate\Auth\AuthManager;
+use Pterodactyl\Models\Subuser;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Hash;
+use Pterodactyl\Jobs\RevokeSftpAccessJob;
 
 class AccountControllerTest extends ClientApiIntegrationTestCase
 {
@@ -14,8 +17,8 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
      */
     public function testAccountDetailsAreReturned()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        $user = factory(User::class)->create();
+        /** @var User $user */
+        $user = User::factory()->create();
 
         $response = $this->actingAs($user)->get('/api/client/account');
 
@@ -38,27 +41,49 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
      */
     public function testEmailIsUpdated()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->putJson('/api/client/account/email', [
-            'email' => 'hodor@example.com',
-            'password' => 'password',
-        ]);
+        $this->actingAs($user)
+            ->putJson('/api/client/account/email', [
+                'email' => $email = Str::random() . '@example.com',
+                'password' => 'password',
+            ])
+            ->assertNoContent();
 
-        $response->assertStatus(Response::HTTP_NO_CONTENT);
+        $this->assertActivityFor('user:account.email-changed', $user, $user);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'email' => $email]);
+    }
 
-        $this->assertDatabaseHas('users', ['id' => $user->id, 'email' => 'hodor@example.com']);
+    public function testEmailChangeIsThrottled(): void
+    {
+        $users = User::factory()->count(2)->create();
+        $endpoint = route('api:client.account.update-email');
+
+        for ($i = 0; $i < 3; ++$i) {
+            $this->actingAs($users[0])
+                ->putJson($endpoint, ['email' => "foo+{$i}@example.com", 'password' => 'password'])
+                ->assertNoContent();
+        }
+
+        $this
+            ->putJson($endpoint, ['email' => 'bar@example.com', 'password' => 'password'])
+            ->assertTooManyRequests();
+
+        // The other user should still be able to update their email because the throttle
+        // is tied to the account, not to the IP address.
+        $this->actingAs($users[1])
+            ->putJson($endpoint, ['email' => 'bar+1@example.com', 'password' => 'password'])
+            ->assertNoContent();
     }
 
     /**
-     * Tests that an email is not updated if the password provided in the reuqest is not
+     * Tests that an email is not updated if the password provided in the request is not
      * valid for the account.
      */
     public function testEmailIsNotUpdatedWhenPasswordIsInvalid()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        $user = factory(User::class)->create();
+        /** @var User $user */
+        $user = User::factory()->create();
 
         $response = $this->actingAs($user)->putJson('/api/client/account/email', [
             'email' => 'hodor@example.com',
@@ -76,8 +101,8 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
      */
     public function testEmailIsNotUpdatedWhenNotValid()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        $user = factory(User::class)->create();
+        /** @var User $user */
+        $user = User::factory()->create();
 
         $response = $this->actingAs($user)->putJson('/api/client/account/email', [
             'email' => '',
@@ -96,6 +121,35 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
         $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
         $response->assertJsonPath('errors.0.meta.rule', 'email');
         $response->assertJsonPath('errors.0.detail', 'The email must be a valid email address.');
+
+
+        /*
+        * RFCs limit certain parts of an email to certain character limits.
+        * A limit of <= 64 for the local, then <= 63 for each domain label.
+        */
+        $local = str_repeat(Str::random(10), 6) . '1234';
+        $label = str_repeat(Str::random(10), 6) . '1';
+
+
+        $response = $this->actingAs($user)->putJson('/api/client/account/email', [
+            'email' => "1$local@$label.$label", // exceed RFC limit for local part
+            'password' => 'password',
+        ]);
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $response->assertJsonPath('errors.0.detail', 'The email must be a valid email address.');
+        $response->assertJsonPath('errors.0.meta.source_field', 'email');
+
+
+        $response = $this->actingAs($user)->putJson('/api/client/account/email', [
+            'email' => "$local@1234$label.$label", // exceed RFC limit for label part
+            'password' => 'password',
+        ]);
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
+        $response->assertJsonPath('errors.0.detail', 'The email must be a valid email address.');
+        $response->assertJsonPath('errors.0.meta.source_field', 'email');
+
     }
 
     /**
@@ -103,21 +157,39 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
      */
     public function testPasswordIsUpdated()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        $user = factory(User::class)->create();
+        $user = User::factory()->create();
 
-        $mock = Mockery::mock(AuthManager::class);
-        $mock->expects('logoutOtherDevices')->with('New_Password1');
+        // Assign the user to two servers, one as the owner the other as a subuser, both
+        // on different nodes to ensure our logic fires off correctly and the user has their
+        // credentials revoked on both nodes.
+        $server = $this->createServerModel(['owner_id' => $user->id]);
+        $server2 = $this->createServerModel();
+        Subuser::factory()->for($server2)->for($user)->create();
 
-        $this->app->instance(AuthManager::class, $mock);
+        $initialHash = $user->password;
 
-        $response = $this->actingAs($user)->putJson('/api/client/account/password', [
-            'current_password' => 'password',
-            'password' => 'New_Password1',
-            'password_confirmation' => 'New_Password1',
-        ]);
+        Bus::fake([RevokeSftpAccessJob::class]);
 
-        $response->assertStatus(Response::HTTP_NO_CONTENT);
+        $this->actingAs($user)
+            ->putJson('/api/client/account/password', [
+                'current_password' => 'password',
+                'password' => 'New_Password1',
+                'password_confirmation' => 'New_Password1',
+            ])
+            ->assertNoContent();
+
+        $user = $user->refresh();
+
+        $this->assertNotEquals($user->password, $initialHash);
+        $this->assertTrue(Hash::check('New_Password1', $user->password));
+        $this->assertFalse(Hash::check('password', $user->password));
+
+        $this->assertActivityFor('user:account.password-changed', $user, $user);
+        $this->assertNotEquals($server->node_id, $server2->node_id);
+
+        Bus::assertDispatchedTimes(RevokeSftpAccessJob::class, 2);
+        Bus::assertDispatched(fn(RevokeSftpAccessJob $job) => $job->user === $user->uuid && $job->target->is($server->node));
+        Bus::assertDispatched(fn(RevokeSftpAccessJob $job) => $job->user === $user->uuid && $job->target->is($server2->node));
     }
 
     /**
@@ -126,8 +198,8 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
      */
     public function testPasswordIsNotUpdatedIfCurrentPasswordIsInvalid()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        $user = factory(User::class)->create();
+        /** @var User $user */
+        $user = User::factory()->create();
 
         $response = $this->actingAs($user)->putJson('/api/client/account/password', [
             'current_password' => 'invalid',
@@ -141,13 +213,36 @@ class AccountControllerTest extends ClientApiIntegrationTestCase
     }
 
     /**
+     * Test that a validation error is returned to the user if no password is provided or if
+     * the password is below the minimum password length.
+     */
+    public function testErrorIsReturnedForInvalidRequestData()
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->putJson('/api/client/account/password', [
+            'current_password' => 'password',
+        ])
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
+            ->assertJsonPath('errors.0.meta.rule', 'required');
+
+        $this->actingAs($user)->putJson('/api/client/account/password', [
+            'current_password' => 'password',
+            'password' => 'pass',
+            'password_confirmation' => 'pass',
+        ])
+            ->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
+            ->assertJsonPath('errors.0.meta.rule', 'min');
+    }
+
+    /**
      * Test that a validation error is returned if the password passed in the request
      * does not have a confirmation, or the confirmation is not the same as the password.
      */
     public function testErrorIsReturnedIfPasswordIsNotConfirmed()
     {
-        /** @var \Pterodactyl\Models\User $user */
-        $user = factory(User::class)->create();
+        /** @var User $user */
+        $user = User::factory()->create();
 
         $response = $this->actingAs($user)->putJson('/api/client/account/password', [
             'current_password' => 'password',

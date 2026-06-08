@@ -15,75 +15,34 @@ use Pterodactyl\Exceptions\Service\User\TwoFactorAuthenticationTokenInvalid;
 class ToggleTwoFactorService
 {
     /**
-     * @var \Illuminate\Contracts\Encryption\Encrypter
-     */
-    private $encrypter;
-
-    /**
-     * @var \PragmaRX\Google2FA\Google2FA
-     */
-    private $google2FA;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\UserRepositoryInterface
-     */
-    private $repository;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\RecoveryTokenRepository
-     */
-    private $recoveryTokenRepository;
-
-    /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
      * ToggleTwoFactorService constructor.
-     *
-     * @param \Illuminate\Database\ConnectionInterface $connection
-     * @param \Illuminate\Contracts\Encryption\Encrypter $encrypter
-     * @param \PragmaRX\Google2FA\Google2FA $google2FA
-     * @param \Pterodactyl\Repositories\Eloquent\RecoveryTokenRepository $recoveryTokenRepository
-     * @param \Pterodactyl\Contracts\Repository\UserRepositoryInterface $repository
      */
     public function __construct(
-        ConnectionInterface $connection,
-        Encrypter $encrypter,
-        Google2FA $google2FA,
-        RecoveryTokenRepository $recoveryTokenRepository,
-        UserRepositoryInterface $repository
+        private ConnectionInterface $connection,
+        private Encrypter $encrypter,
+        private Google2FA $google2FA,
+        private RecoveryTokenRepository $recoveryTokenRepository,
+        private UserRepositoryInterface $repository,
     ) {
-        $this->encrypter = $encrypter;
-        $this->google2FA = $google2FA;
-        $this->repository = $repository;
-        $this->recoveryTokenRepository = $recoveryTokenRepository;
-        $this->connection = $connection;
     }
 
     /**
      * Toggle 2FA on an account only if the token provided is valid.
      *
-     * @param \Pterodactyl\Models\User $user
-     * @param string $token
-     * @param bool|null $toggleState
-     * @return string[]
-     *
      * @throws \Throwable
      * @throws \PragmaRX\Google2FA\Exceptions\IncompatibleWithGoogleAuthenticatorException
      * @throws \PragmaRX\Google2FA\Exceptions\InvalidCharactersException
      * @throws \PragmaRX\Google2FA\Exceptions\SecretKeyTooShortException
-     * @throws \Pterodactyl\Exceptions\Service\User\TwoFactorAuthenticationTokenInvalid
+     * @throws TwoFactorAuthenticationTokenInvalid
      */
-    public function handle(User $user, string $token, bool $toggleState = null): array
+    public function handle(User $user, string $token, ?bool $toggleState = null): array
     {
         $secret = $this->encrypter->decrypt($user->totp_secret);
 
         $isValidToken = $this->google2FA->verifyKey($secret, $token, config()->get('pterodactyl.auth.2fa.window'));
 
-        if (! $isValidToken) {
-            throw new TwoFactorAuthenticationTokenInvalid('The token provided is not valid.');
+        if (!$isValidToken) {
+            throw new TwoFactorAuthenticationTokenInvalid();
         }
 
         return $this->connection->transaction(function () use ($user, $toggleState) {
@@ -95,14 +54,17 @@ class ToggleTwoFactorService
             // which will then be marked as deleted from the database and will also bypass 2FA protections
             // on their account.
             $tokens = [];
-            if ((! $toggleState && ! $user->use_totp) || $toggleState) {
+            if ((!$toggleState && !$user->use_totp) || $toggleState) {
                 $inserts = [];
-                for ($i = 0; $i < 10; $i++) {
+                for ($i = 0; $i < 10; ++$i) {
                     $token = Str::random(10);
 
                     $inserts[] = [
                         'user_id' => $user->id,
                         'token' => password_hash($token, PASSWORD_DEFAULT),
+                        // insert() won't actually set the time on the models, so make sure we do this
+                        // manually here.
+                        'created_at' => Carbon::now(),
                     ];
 
                     $tokens[] = $token;
@@ -117,8 +79,8 @@ class ToggleTwoFactorService
             }
 
             $this->repository->withoutFreshModel()->update($user->id, [
-                'totp_authenticated_at' => Carbon::now(),
-                'use_totp' => (is_null($toggleState) ? ! $user->use_totp : $toggleState),
+                'totp_authenticated_at' => null,
+                'use_totp' => (is_null($toggleState) ? !$user->use_totp : $toggleState),
             ]);
 
             return $tokens;

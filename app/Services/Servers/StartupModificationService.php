@@ -15,40 +15,21 @@ class StartupModificationService
     use HasUserLevels;
 
     /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
-     * @var \Pterodactyl\Services\Servers\VariableValidatorService
-     */
-    private $validatorService;
-
-    /**
      * StartupModificationService constructor.
-     *
-     * @param \Illuminate\Database\ConnectionInterface $connection
-     * @param \Pterodactyl\Services\Servers\VariableValidatorService $validatorService
      */
-    public function __construct(ConnectionInterface $connection, VariableValidatorService $validatorService)
+    public function __construct(private ConnectionInterface $connection, private VariableValidatorService $validatorService)
     {
-        $this->connection = $connection;
-        $this->validatorService = $validatorService;
     }
 
     /**
      * Process startup modification for a server.
-     *
-     * @param \Pterodactyl\Models\Server $server
-     * @param array $data
-     * @return \Pterodactyl\Models\Server
      *
      * @throws \Throwable
      */
     public function handle(Server $server, array $data): Server
     {
         return $this->connection->transaction(function () use ($server, $data) {
-            if (! empty($data['environment'])) {
+            if (!empty($data['environment'])) {
                 $egg = $this->isUserLevel(User::USER_LEVEL_ADMIN) ? ($data['egg_id'] ?? $server->egg_id) : $server->egg_id;
 
                 $results = $this->validatorService
@@ -83,16 +64,13 @@ class StartupModificationService
 
     /**
      * Update certain administrative settings for a server in the DB.
-     *
-     * @param array $data
-     * @param \Pterodactyl\Models\Server $server
      */
-    protected function updateAdministrativeSettings(array $data, Server &$server)
+    protected function updateAdministrativeSettings(array $data, Server &$server): void
     {
         $eggId = Arr::get($data, 'egg_id');
 
-        if (is_digit($eggId) && $server->egg_id !== (int)$eggId) {
-            /** @var \Pterodactyl\Models\Egg $egg */
+        if (is_digit($eggId) && $server->egg_id !== (int) $eggId) {
+            /** @var Egg $egg */
             $egg = Egg::query()->findOrFail($data['egg_id']);
 
             $server = $server->forceFill([

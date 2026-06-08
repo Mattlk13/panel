@@ -9,18 +9,13 @@ class ListFilesRequest extends ClientApiRequest
 {
     /**
      * Check that the user making this request to the API is authorized to list all
-     * of the files that exist for a given server.
-     *
-     * @return string
+     * the files that exist for a given server.
      */
     public function permission(): string
     {
         return Permission::ACTION_FILE_READ;
     }
 
-    /**
-     * @return array
-     */
     public function rules(): array
     {
         return [

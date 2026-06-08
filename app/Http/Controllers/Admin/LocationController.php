@@ -1,16 +1,12 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Http\Controllers\Admin;
 
+use Illuminate\View\View;
 use Pterodactyl\Models\Location;
+use Illuminate\Http\RedirectResponse;
 use Prologue\Alerts\AlertsMessageBag;
+use Illuminate\View\Factory as ViewFactory;
 use Pterodactyl\Exceptions\DisplayException;
 use Pterodactyl\Http\Controllers\Controller;
 use Pterodactyl\Http\Requests\Admin\LocationFormRequest;
@@ -22,59 +18,22 @@ use Pterodactyl\Contracts\Repository\LocationRepositoryInterface;
 class LocationController extends Controller
 {
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    protected $alert;
-
-    /**
-     * @var \Pterodactyl\Services\Locations\LocationCreationService
-     */
-    protected $creationService;
-
-    /**
-     * @var \Pterodactyl\Services\Locations\LocationDeletionService
-     */
-    protected $deletionService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\LocationRepositoryInterface
-     */
-    protected $repository;
-
-    /**
-     * @var \Pterodactyl\Services\Locations\LocationUpdateService
-     */
-    protected $updateService;
-
-    /**
      * LocationController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Pterodactyl\Services\Locations\LocationCreationService $creationService
-     * @param \Pterodactyl\Services\Locations\LocationDeletionService $deletionService
-     * @param \Pterodactyl\Contracts\Repository\LocationRepositoryInterface $repository
-     * @param \Pterodactyl\Services\Locations\LocationUpdateService $updateService
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        LocationCreationService $creationService,
-        LocationDeletionService $deletionService,
-        LocationRepositoryInterface $repository,
-        LocationUpdateService $updateService
+        protected AlertsMessageBag $alert,
+        protected LocationCreationService $creationService,
+        protected LocationDeletionService $deletionService,
+        protected LocationRepositoryInterface $repository,
+        protected LocationUpdateService $updateService,
+        protected ViewFactory $view,
     ) {
-        $this->alert = $alert;
-        $this->creationService = $creationService;
-        $this->deletionService = $deletionService;
-        $this->repository = $repository;
-        $this->updateService = $updateService;
     }
 
     /**
      * Return the location overview page.
-     *
-     * @return \Illuminate\View\View
      */
-    public function index()
+    public function index(): View
     {
         return view('admin.locations.index', [
             'locations' => $this->repository->getAllWithDetails(),
@@ -84,12 +43,9 @@ class LocationController extends Controller
     /**
      * Return the location view page.
      *
-     * @param int $id
-     * @return \Illuminate\View\View
-     *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
-    public function view($id)
+    public function view(int $id): View
     {
         return view('admin.locations.view', [
             'location' => $this->repository->getWithNodes($id),
@@ -99,12 +55,9 @@ class LocationController extends Controller
     /**
      * Handle request to create new location.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\LocationFormRequest $request
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Throwable
      */
-    public function create(LocationFormRequest $request)
+    public function create(LocationFormRequest $request): RedirectResponse
     {
         $location = $this->creationService->handle($request->normalize());
         $this->alert->success('Location was created successfully.')->flash();
@@ -115,13 +68,9 @@ class LocationController extends Controller
     /**
      * Handle request to update or delete location.
      *
-     * @param \Pterodactyl\Http\Requests\Admin\LocationFormRequest $request
-     * @param \Pterodactyl\Models\Location $location
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Throwable
      */
-    public function update(LocationFormRequest $request, Location $location)
+    public function update(LocationFormRequest $request, Location $location): RedirectResponse
     {
         if ($request->input('action') === 'delete') {
             return $this->delete($location);
@@ -136,13 +85,10 @@ class LocationController extends Controller
     /**
      * Delete a location from the system.
      *
-     * @param \Pterodactyl\Models\Location $location
-     * @return \Illuminate\Http\RedirectResponse
-     *
      * @throws \Exception
-     * @throws \Pterodactyl\Exceptions\DisplayException
+     * @throws DisplayException
      */
-    public function delete(Location $location)
+    public function delete(Location $location): RedirectResponse
     {
         try {
             $this->deletionService->handle($location->id);

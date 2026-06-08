@@ -2,27 +2,31 @@
 
 namespace Pterodactyl\Repositories\Wings;
 
+use Illuminate\Support\Arr;
 use Webmozart\Assert\Assert;
 use Pterodactyl\Models\Server;
 use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\TransferException;
 use Pterodactyl\Exceptions\Http\Server\FileSizeTooLargeException;
 use Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException;
 
+/**
+ * @method \Pterodactyl\Repositories\Wings\DaemonFileRepository setNode(\Pterodactyl\Models\Node $node)
+ * @method \Pterodactyl\Repositories\Wings\DaemonFileRepository setServer(\Pterodactyl\Models\Server $server)
+ */
 class DaemonFileRepository extends DaemonRepository
 {
     /**
      * Return the contents of a given file.
      *
-     * @param string $path
      * @param int|null $notLargerThan the maximum content length in bytes
-     * @return string
      *
-     * @throws \GuzzleHttp\Exception\TransferException
-     * @throws \Pterodactyl\Exceptions\Http\Server\FileSizeTooLargeException
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws TransferException
+     * @throws FileSizeTooLargeException
+     * @throws DaemonConnectionException
      */
-    public function getContent(string $path, int $notLargerThan = null): string
+    public function getContent(string $path, ?int $notLargerThan = null): string
     {
         Assert::isInstanceOf($this->server, Server::class);
 
@@ -33,14 +37,13 @@ class DaemonFileRepository extends DaemonRepository
                     'query' => ['file' => $path],
                 ]
             );
-        } catch (TransferException $exception) {
+        } catch (ClientException|TransferException $exception) {
             throw new DaemonConnectionException($exception);
         }
 
-        $length = (int) $response->getHeader('Content-Length')[0] ?? 0;
-
+        $length = (int) Arr::get($response->getHeader('Content-Length'), 0, 0);
         if ($notLargerThan && $length > $notLargerThan) {
-            throw new FileSizeTooLargeException;
+            throw new FileSizeTooLargeException();
         }
 
         return $response->getBody()->__toString();
@@ -50,11 +53,7 @@ class DaemonFileRepository extends DaemonRepository
      * Save new contents to a given file. This works for both creating and updating
      * a file.
      *
-     * @param string $path
-     * @param string $content
-     * @return \Psr\Http\Message\ResponseInterface
-     *
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
     public function putContent(string $path, string $content): ResponseInterface
     {
@@ -76,10 +75,7 @@ class DaemonFileRepository extends DaemonRepository
     /**
      * Return a directory listing for a given path.
      *
-     * @param string $path
-     * @return array
-     *
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
     public function getDirectory(string $path): array
     {
@@ -102,11 +98,7 @@ class DaemonFileRepository extends DaemonRepository
     /**
      * Creates a new directory for the server in the given $path.
      *
-     * @param string $name
-     * @param string $path
-     * @return \Psr\Http\Message\ResponseInterface
-     *
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
     public function createDirectory(string $name, string $path): ResponseInterface
     {
@@ -130,11 +122,7 @@ class DaemonFileRepository extends DaemonRepository
     /**
      * Renames or moves a file on the remote machine.
      *
-     * @param string|null $root
-     * @param array $files
-     * @return \Psr\Http\Message\ResponseInterface
-     *
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
     public function renameFiles(?string $root, array $files): ResponseInterface
     {
@@ -158,10 +146,7 @@ class DaemonFileRepository extends DaemonRepository
     /**
      * Copy a given file and give it a unique name.
      *
-     * @param string $location
-     * @return \Psr\Http\Message\ResponseInterface
-     *
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
     public function copyFile(string $location): ResponseInterface
     {
@@ -184,11 +169,7 @@ class DaemonFileRepository extends DaemonRepository
     /**
      * Delete a file or folder for the server.
      *
-     * @param string|null $root
-     * @param array $files
-     * @return \Psr\Http\Message\ResponseInterface
-     *
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
     public function deleteFiles(?string $root, array $files): ResponseInterface
     {
@@ -212,11 +193,7 @@ class DaemonFileRepository extends DaemonRepository
     /**
      * Compress the given files or folders in the given root.
      *
-     * @param string|null $root
-     * @param array $files
-     * @return array
-     *
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
     public function compressFiles(?string $root, array $files): array
     {
@@ -245,11 +222,7 @@ class DaemonFileRepository extends DaemonRepository
     /**
      * Decompresses a given archive file.
      *
-     * @param string|null $root
-     * @param string $file
-     * @return \Psr\Http\Message\ResponseInterface
-     *
-     * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
+     * @throws DaemonConnectionException
      */
     public function decompressFile(?string $root, string $file): ResponseInterface
     {
@@ -263,6 +236,62 @@ class DaemonFileRepository extends DaemonRepository
                         'root' => $root ?? '/',
                         'file' => $file,
                     ],
+                    // Wait for up to 15 minutes for the decompress to be completed when calling this endpoint
+                    // since it will likely take quite awhile for large directories.
+                    'timeout' => 60 * 15,
+                ]
+            );
+        } catch (TransferException $exception) {
+            throw new DaemonConnectionException($exception);
+        }
+    }
+
+    /**
+     * Chmods the given files.
+     *
+     * @throws DaemonConnectionException
+     */
+    public function chmodFiles(?string $root, array $files): ResponseInterface
+    {
+        Assert::isInstanceOf($this->server, Server::class);
+
+        try {
+            return $this->getHttpClient()->post(
+                sprintf('/api/servers/%s/files/chmod', $this->server->uuid),
+                [
+                    'json' => [
+                        'root' => $root ?? '/',
+                        'files' => $files,
+                    ],
+                ]
+            );
+        } catch (TransferException $exception) {
+            throw new DaemonConnectionException($exception);
+        }
+    }
+
+    /**
+     * Pulls a file from the given URL and saves it to the disk.
+     *
+     * @throws DaemonConnectionException
+     */
+    public function pull(string $url, ?string $directory, array $params = []): ResponseInterface
+    {
+        Assert::isInstanceOf($this->server, Server::class);
+
+        $attributes = [
+            'url' => $url,
+            'root' => $directory ?? '/',
+            'file_name' => $params['filename'] ?? null,
+            'use_header' => $params['use_header'] ?? null,
+            'foreground' => $params['foreground'] ?? null,
+        ];
+
+        try {
+            return $this->getHttpClient()->post(
+                sprintf('/api/servers/%s/files/pull', $this->server->uuid),
+                [
+                    'json' => array_filter($attributes, fn ($value) => !is_null($value)),
                 ]
             );
         } catch (TransferException $exception) {

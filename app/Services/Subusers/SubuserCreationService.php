@@ -16,43 +16,14 @@ use Pterodactyl\Exceptions\Service\Subuser\ServerSubuserExistsException;
 class SubuserCreationService
 {
     /**
-     * @var \Illuminate\Database\ConnectionInterface
-     */
-    private $connection;
-
-    /**
-     * @var \Pterodactyl\Repositories\Eloquent\SubuserRepository
-     */
-    private $subuserRepository;
-
-    /**
-     * @var \Pterodactyl\Services\Users\UserCreationService
-     */
-    private $userCreationService;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\UserRepositoryInterface
-     */
-    private $userRepository;
-
-    /**
      * SubuserCreationService constructor.
-     *
-     * @param \Illuminate\Database\ConnectionInterface $connection
-     * @param \Pterodactyl\Repositories\Eloquent\SubuserRepository $subuserRepository
-     * @param \Pterodactyl\Services\Users\UserCreationService $userCreationService
-     * @param \Pterodactyl\Contracts\Repository\UserRepositoryInterface $userRepository
      */
     public function __construct(
-        ConnectionInterface $connection,
-        SubuserRepository $subuserRepository,
-        UserCreationService $userCreationService,
-        UserRepositoryInterface $userRepository
+        private ConnectionInterface $connection,
+        private SubuserRepository $subuserRepository,
+        private UserCreationService $userCreationService,
+        private UserRepositoryInterface $userRepository,
     ) {
-        $this->connection = $connection;
-        $this->subuserRepository = $subuserRepository;
-        $this->userRepository = $userRepository;
-        $this->userCreationService = $userCreationService;
     }
 
     /**
@@ -60,14 +31,9 @@ class SubuserCreationService
      * If the email address already belongs to a user on the system a new user will not
      * be created.
      *
-     * @param \Pterodactyl\Models\Server $server
-     * @param string $email
-     * @param array $permissions
-     * @return \Pterodactyl\Models\Subuser
-     *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
-     * @throws \Pterodactyl\Exceptions\Service\Subuser\ServerSubuserExistsException
-     * @throws \Pterodactyl\Exceptions\Service\Subuser\UserIsServerOwnerException
+     * @throws ServerSubuserExistsException
+     * @throws UserIsServerOwnerException
      * @throws \Throwable
      */
     public function handle(Server $server, string $email, array $permissions): Subuser
@@ -84,7 +50,7 @@ class SubuserCreationService
                 if ($subuserCount !== 0) {
                     throw new ServerSubuserExistsException(trans('exceptions.subusers.subuser_exists'));
                 }
-            } catch (RecordNotFoundException $exception) {
+            } catch (RecordNotFoundException) {
                 // Just cap the username generated at 64 characters at most and then append a random string
                 // to the end to make it "unique"...
                 $username = substr(preg_replace('/([^\w\.-]+)/', '', strtok($email, '@')), 0, 64) . Str::random(3);

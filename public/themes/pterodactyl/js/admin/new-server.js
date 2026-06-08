@@ -82,7 +82,15 @@ $('#pEggId').on('change', function (event) {
     let parentChain = _.get(Pterodactyl.nests, $('#pNestId').val(), null);
     let objectChain = _.get(parentChain, 'eggs.' + $(this).val(), null);
 
-    $('#pDefaultContainer').val(_.get(objectChain, 'docker_image', 'not defined!'));
+    const images = _.get(objectChain, 'docker_images', {})
+    $('#pDefaultContainer').html('');
+    const keys = Object.keys(images);
+    for (let i = 0; i < keys.length; i++) {
+        let opt = document.createElement('option');
+        opt.value = images[keys[i]];
+        opt.innerText = keys[i] + " (" + images[keys[i]] + ")";
+        $('#pDefaultContainer').append(opt);
+    }
 
     if (!_.get(objectChain, 'startup', false)) {
         $('#pStartup').val(_.get(parentChain, 'startup', 'ERROR: Startup Not Defined!'));
@@ -101,6 +109,12 @@ $('#pEggId').on('change', function (event) {
         ),
     });
 
+    function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+    }
+
     const variableIds = {};
     $('#appendVariablesTo').html('');
     $.each(_.get(objectChain, 'variables', []), function (i, item) {
@@ -109,11 +123,11 @@ $('#pEggId').on('change', function (event) {
         let isRequired = (item.required === 1) ? '<span class="label label-danger">Required</span> ' : '';
         let dataAppend = ' \
             <div class="form-group col-sm-6"> \
-                <label for="var_ref_' + item.id + '" class="control-label">' + isRequired + item.name + '</label> \
-                <input type="text" id="var_ref_' + item.id + '" autocomplete="off" name="environment[' + item.env_variable + ']" class="form-control" value="' + item.default_value + '" /> \
-                <p class="text-muted small">' + item.description + '<br /> \
-                <strong>Access in Startup:</strong> <code>{{' + item.env_variable + '}}</code><br /> \
-                <strong>Validation Rules:</strong> <code>' + item.rules + '</code></small></p> \
+                <label for="var_ref_' + escapeHtml(item.id) + '" class="control-label">' + isRequired + escapeHtml(item.name) + '</label> \
+                <input type="text" id="var_ref_' + escapeHtml(item.id) + '" autocomplete="off" name="environment[' + escapeHtml(item.env_variable) + ']" class="form-control" value="' + escapeHtml(item.default_value) + '" /> \
+                <p class="text-muted small">' + escapeHtml(item.description) + '<br /> \
+                <strong>Access in Startup:</strong> <code>{{' + escapeHtml(item.env_variable) + '}}</code><br /> \
+                <strong>Validation Rules:</strong> <code>' + escapeHtml(item.rules) + '</code></small></p> \
             </div> \
         ';
         $('#appendVariablesTo').append(dataAppend);

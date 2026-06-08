@@ -1,11 +1,4 @@
 <?php
-/**
- * Pterodactyl - Panel
- * Copyright (c) 2015 - 2017 Dane Everitt <dane@daneeveritt.com>.
- *
- * This software is licensed under the terms of the MIT license.
- * https://opensource.org/licenses/MIT
- */
 
 namespace Pterodactyl\Http\Controllers\Admin\Nests;
 
@@ -22,54 +15,22 @@ use Pterodactyl\Services\Eggs\Sharing\EggUpdateImporterService;
 class EggShareController extends Controller
 {
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    protected $alert;
-
-    /**
-     * @var \Pterodactyl\Services\Eggs\Sharing\EggExporterService
-     */
-    protected $exporterService;
-
-    /**
-     * @var \Pterodactyl\Services\Eggs\Sharing\EggImporterService
-     */
-    protected $importerService;
-
-    /**
-     * @var \Pterodactyl\Services\Eggs\Sharing\EggUpdateImporterService
-     */
-    protected $updateImporterService;
-
-    /**
-     * OptionShareController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Pterodactyl\Services\Eggs\Sharing\EggExporterService $exporterService
-     * @param \Pterodactyl\Services\Eggs\Sharing\EggImporterService $importerService
-     * @param \Pterodactyl\Services\Eggs\Sharing\EggUpdateImporterService $updateImporterService
+     * EggShareController constructor.
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        EggExporterService $exporterService,
-        EggImporterService $importerService,
-        EggUpdateImporterService $updateImporterService
+        protected AlertsMessageBag $alert,
+        protected EggExporterService $exporterService,
+        protected EggImporterService $importerService,
+        protected EggUpdateImporterService $updateImporterService,
     ) {
-        $this->alert = $alert;
-        $this->exporterService = $exporterService;
-        $this->importerService = $importerService;
-        $this->updateImporterService = $updateImporterService;
     }
 
     /**
-     * @param \Pterodactyl\Models\Egg $egg
-     * @return \Symfony\Component\HttpFoundation\Response
-     *
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */
     public function export(Egg $egg): Response
     {
-        $filename = trim(preg_replace('/[^\w]/', '-', kebab_case($egg->name)), '-');
+        $filename = trim(preg_replace('/\W/', '-', kebab_case($egg->name)), '-');
 
         return response($this->exporterService->handle($egg->id), 200, [
             'Content-Transfer-Encoding' => 'binary',
@@ -81,9 +42,6 @@ class EggShareController extends Controller
 
     /**
      * Import a new service option using an XML file.
-     *
-     * @param \Pterodactyl\Http\Requests\Admin\Egg\EggImportFormRequest $request
-     * @return \Illuminate\Http\RedirectResponse
      *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
@@ -100,10 +58,6 @@ class EggShareController extends Controller
 
     /**
      * Update an existing Egg using a new imported file.
-     *
-     * @param \Pterodactyl\Http\Requests\Admin\Egg\EggImportFormRequest $request
-     * @param \Pterodactyl\Models\Egg $egg
-     * @return \Illuminate\Http\RedirectResponse
      *
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException

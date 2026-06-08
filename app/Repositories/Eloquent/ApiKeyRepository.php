@@ -11,19 +11,14 @@ class ApiKeyRepository extends EloquentRepository implements ApiKeyRepositoryInt
 {
     /**
      * Return the model backing this repository.
-     *
-     * @return string
      */
-    public function model()
+    public function model(): string
     {
         return ApiKey::class;
     }
 
     /**
-     * Get all of the account API keys that exist for a specific user.
-     *
-     * @param \Pterodactyl\Models\User $user
-     * @return \Illuminate\Support\Collection
+     * Get all the account API keys that exist for a specific user.
      */
     public function getAccountKeys(User $user): Collection
     {
@@ -33,44 +28,12 @@ class ApiKeyRepository extends EloquentRepository implements ApiKeyRepositoryInt
     }
 
     /**
-     * Get all of the application API keys that exist for a specific user.
-     *
-     * @param \Pterodactyl\Models\User $user
-     * @return \Illuminate\Support\Collection
-     */
-    public function getApplicationKeys(User $user): Collection
-    {
-        return $this->getBuilder()->where('user_id', $user->id)
-            ->where('key_type', ApiKey::TYPE_APPLICATION)
-            ->get($this->getColumns());
-    }
-
-    /**
      * Delete an account API key from the panel for a specific user.
-     *
-     * @param \Pterodactyl\Models\User $user
-     * @param string $identifier
-     * @return int
      */
     public function deleteAccountKey(User $user, string $identifier): int
     {
         return $this->getBuilder()->where('user_id', $user->id)
             ->where('key_type', ApiKey::TYPE_ACCOUNT)
-            ->where('identifier', $identifier)
-            ->delete();
-    }
-
-    /**
-     * Delete an application API key from the panel for a specific user.
-     *
-     * @param \Pterodactyl\Models\User $user
-     * @param string $identifier
-     * @return int
-     */
-    public function deleteApplicationKey(User $user, string $identifier): int
-    {
-        return $this->getBuilder()->where('user_id', $user->id)
-            ->where('key_type', ApiKey::TYPE_APPLICATION)
             ->where('identifier', $identifier)
             ->delete();
     }

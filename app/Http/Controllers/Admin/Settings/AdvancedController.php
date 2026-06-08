@@ -14,49 +14,18 @@ use Pterodactyl\Http\Requests\Admin\Settings\AdvancedSettingsFormRequest;
 class AdvancedController extends Controller
 {
     /**
-     * @var \Prologue\Alerts\AlertsMessageBag
-     */
-    private $alert;
-
-    /**
-     * @var \Illuminate\Contracts\Config\Repository
-     */
-    private $config;
-
-    /**
-     * @var \Illuminate\Contracts\Console\Kernel
-     */
-    private $kernel;
-
-    /**
-     * @var \Pterodactyl\Contracts\Repository\SettingsRepositoryInterface
-     */
-    private $settings;
-
-    /**
      * AdvancedController constructor.
-     *
-     * @param \Prologue\Alerts\AlertsMessageBag $alert
-     * @param \Illuminate\Contracts\Config\Repository $config
-     * @param \Illuminate\Contracts\Console\Kernel $kernel
-     * @param \Pterodactyl\Contracts\Repository\SettingsRepositoryInterface $settings
      */
     public function __construct(
-        AlertsMessageBag $alert,
-        ConfigRepository $config,
-        Kernel $kernel,
-        SettingsRepositoryInterface $settings
+        private AlertsMessageBag $alert,
+        private ConfigRepository $config,
+        private Kernel $kernel,
+        private SettingsRepositoryInterface $settings,
     ) {
-        $this->alert = $alert;
-        $this->config = $config;
-        $this->kernel = $kernel;
-        $this->settings = $settings;
     }
 
     /**
      * Render advanced Panel settings UI.
-     *
-     * @return \Illuminate\View\View
      */
     public function index(): View
     {
@@ -74,8 +43,6 @@ class AdvancedController extends Controller
     }
 
     /**
-     * @param \Pterodactyl\Http\Requests\Admin\Settings\AdvancedSettingsFormRequest $request
-     * @return \Illuminate\Http\RedirectResponse
      * @throws \Pterodactyl\Exceptions\Model\DataValidationException
      * @throws \Pterodactyl\Exceptions\Repository\RecordNotFoundException
      */

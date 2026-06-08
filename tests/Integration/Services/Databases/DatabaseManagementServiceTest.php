@@ -2,10 +2,7 @@
 
 namespace Pterodactyl\Tests\Integration\Services\Databases;
 
-use Mockery;
-use Exception;
-use BadMethodCallException;
-use InvalidArgumentException;
+use Mockery\MockInterface;
 use Pterodactyl\Models\Database;
 use Pterodactyl\Models\DatabaseHost;
 use Pterodactyl\Tests\Integration\IntegrationTestCase;
@@ -17,8 +14,7 @@ use Pterodactyl\Exceptions\Service\Database\DatabaseClientFeatureNotEnabledExcep
 
 class DatabaseManagementServiceTest extends IntegrationTestCase
 {
-    /** @var \Mockery\MockInterface */
-    private $repository;
+    private MockInterface $repository;
 
     /**
      * Setup tests.
@@ -29,8 +25,7 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
 
         config()->set('pterodactyl.client_features.databases.enabled', true);
 
-        $this->repository = Mockery::mock(DatabaseRepository::class);
-        $this->swap(DatabaseRepository::class, $this->repository);
+        $this->repository = $this->mock(DatabaseRepository::class);
     }
 
     /**
@@ -63,9 +58,9 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
     public function testDatabaseCannotBeCreatedIfServerHasReachedLimit()
     {
         $server = $this->createServerModel(['database_limit' => 2]);
-        $host = factory(DatabaseHost::class)->create(['node_id' => $server->node_id]);
+        $host = DatabaseHost::factory()->create(['node_id' => $server->node_id]);
 
-        factory(Database::class)->times(2)->create(['server_id' => $server->id, 'database_host_id' => $host->id]);
+        Database::factory()->times(2)->create(['server_id' => $server->id, 'database_host_id' => $host->id]);
 
         $this->expectException(TooManyDatabasesException::class);
 
@@ -74,15 +69,13 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
 
     /**
      * Test that a missing or invalid database name format causes an exception to be thrown.
-     *
-     * @param array $data
-     * @dataProvider invalidDataDataProvider
      */
-    public function testEmptyDatabaseNameOrInvalidNameTriggersAnException($data)
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidDataDataProvider')]
+    public function testEmptyDatabaseNameOrInvalidNameTriggersAnException(array $data)
     {
         $server = $this->createServerModel();
 
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('The database name passed to DatabaseManagementService::handle MUST be prefixed with "s{server_id}_".');
 
         $this->getService()->create($server, $data);
@@ -96,9 +89,9 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
         $server = $this->createServerModel();
         $name = DatabaseManagementService::generateUniqueDatabaseName('soemthing', $server->id);
 
-        $host = factory(DatabaseHost::class)->create(['node_id' => $server->node_id]);
-        $host2 = factory(DatabaseHost::class)->create(['node_id' => $server->node_id]);
-        factory(Database::class)->create([
+        $host = DatabaseHost::factory()->create(['node_id' => $server->node_id]);
+        $host2 = DatabaseHost::factory()->create(['node_id' => $server->node_id]);
+        Database::factory()->create([
             'database' => $name,
             'database_host_id' => $host->id,
             'server_id' => $server->id,
@@ -125,7 +118,7 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
         $server = $this->createServerModel();
         $name = DatabaseManagementService::generateUniqueDatabaseName('soemthing', $server->id);
 
-        $host = factory(DatabaseHost::class)->create(['node_id' => $server->node_id]);
+        $host = DatabaseHost::factory()->create(['node_id' => $server->node_id]);
 
         $this->repository->expects('createDatabase')->with($name);
 
@@ -137,13 +130,13 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
         // assertions that would get caught by the functions catcher and thus lead to the exception
         // being swallowed incorrectly.
         $this->repository->expects('createUser')->with(
-            Mockery::on(function ($value) use (&$username) {
+            \Mockery::on(function ($value) use (&$username) {
                 $username = $value;
 
                 return true;
             }),
             '%',
-            Mockery::on(function ($value) use (&$password) {
+            \Mockery::on(function ($value) use (&$password) {
                 $password = $value;
 
                 return true;
@@ -151,7 +144,7 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
             null
         );
 
-        $this->repository->expects('assignUserToDatabase')->with($name, Mockery::on(function ($value) use (&$secondUsername) {
+        $this->repository->expects('assignUserToDatabase')->with($name, \Mockery::on(function ($value) use (&$secondUsername) {
             $secondUsername = $value;
 
             return true;
@@ -167,7 +160,7 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
 
         $this->assertInstanceOf(Database::class, $response);
         $this->assertSame($response->server_id, $server->id);
-        $this->assertRegExp('/^(u[\d]+_)(\w){10}$/', $username);
+        $this->assertMatchesRegularExpression('/^(u\d+_)(\w){10}$/', $username);
         $this->assertSame($username, $secondUsername);
         $this->assertSame(24, strlen($password));
 
@@ -175,21 +168,21 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
     }
 
     /**
-     * Test that an exception encountered while creating the database leads to cleanup code being called
-     * and any exceptions encountered while cleaning up go unreported.
+     * Test that an exception encountered while creating the database leads to the cleanup code
+     * being called and any exceptions encountered while cleaning up go unreported.
      */
     public function testExceptionEncounteredWhileCreatingDatabaseAttemptsToCleanup()
     {
         $server = $this->createServerModel();
         $name = DatabaseManagementService::generateUniqueDatabaseName('soemthing', $server->id);
 
-        $host = factory(DatabaseHost::class)->create(['node_id' => $server->node_id]);
+        $host = DatabaseHost::factory()->create(['node_id' => $server->node_id]);
 
-        $this->repository->expects('createDatabase')->with($name)->andThrows(new BadMethodCallException);
+        $this->repository->expects('createDatabase')->with($name)->andThrows(new \BadMethodCallException());
         $this->repository->expects('dropDatabase')->with($name);
-        $this->repository->expects('dropUser')->withAnyArgs()->andThrows(new InvalidArgumentException);
+        $this->repository->expects('dropUser')->withAnyArgs()->andThrows(new \InvalidArgumentException());
 
-        $this->expectException(BadMethodCallException::class);
+        $this->expectException(\BadMethodCallException::class);
 
         $this->getService()->create($server, [
             'remote' => '%',
@@ -200,10 +193,7 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
         $this->assertDatabaseMissing('databases', ['server_id' => $server->id]);
     }
 
-    /**
-     * @return array
-     */
-    public function invalidDataDataProvider(): array
+    public static function invalidDataDataProvider(): array
     {
         return [
             [[]],
@@ -215,10 +205,7 @@ class DatabaseManagementServiceTest extends IntegrationTestCase
         ];
     }
 
-    /**
-     * @return \Pterodactyl\Services\Databases\DatabaseManagementService
-     */
-    private function getService()
+    private function getService(): DatabaseManagementService
     {
         return $this->app->make(DatabaseManagementService::class);
     }

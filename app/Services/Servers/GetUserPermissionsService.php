@@ -11,12 +11,8 @@ class GetUserPermissionsService
      * Returns the server specific permissions that a user has. This checks
      * if they are an admin or a subuser for the server. If no permissions are
      * found, an empty array is returned.
-     *
-     * @param \Pterodactyl\Models\Server $server
-     * @param \Pterodactyl\Models\User $user
-     * @return string[]
      */
-    public function handle(Server $server, User $user)
+    public function handle(Server $server, User $user): array
     {
         if ($user->root_admin || $user->id === $server->owner_id) {
             $permissions = ['*'];
@@ -24,6 +20,7 @@ class GetUserPermissionsService
             if ($user->root_admin) {
                 $permissions[] = 'admin.websocket.errors';
                 $permissions[] = 'admin.websocket.install';
+                $permissions[] = 'admin.websocket.transfer';
             }
 
             return $permissions;

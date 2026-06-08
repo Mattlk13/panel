@@ -12,16 +12,14 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
 {
     /**
      * Test that a task can be created.
-     *
-     * @param array $permissions
-     * @dataProvider permissionsDataProvider
      */
-    public function testTaskCanBeCreated($permissions)
+    #[\PHPUnit\Framework\Attributes\DataProvider('permissionsDataProvider')]
+    public function testTaskCanBeCreated(array $permissions)
     {
         [$user, $server] = $this->generateTestAccount($permissions);
 
-        /** @var \Pterodactyl\Models\Schedule $schedule */
-        $schedule = factory(Schedule::class)->create(['server_id' => $server->id]);
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
         $this->assertEmpty($schedule->tasks);
 
         $response = $this->actingAs($user)->postJson($this->link($schedule, '/tasks'), [
@@ -32,7 +30,7 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
         ]);
 
         $response->assertOk();
-        /** @var \Pterodactyl\Models\Task $task */
+        /** @var Task $task */
         $task = Task::query()->findOrFail($response->json('attributes.id'));
 
         $this->assertSame($schedule->id, $task->schedule_id);
@@ -50,14 +48,14 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
     {
         [$user, $server] = $this->generateTestAccount();
 
-        /** @var \Pterodactyl\Models\Schedule $schedule */
-        $schedule = factory(Schedule::class)->create(['server_id' => $server->id]);
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
 
         $response = $this->actingAs($user)->postJson($this->link($schedule, '/tasks'))->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
 
         foreach (['action', 'payload', 'time_offset'] as $i => $field) {
-            $response->assertJsonPath("errors.{$i}.meta.rule", $field === 'payload' ? 'required_unless' : 'required');
-            $response->assertJsonPath("errors.{$i}.meta.source_field", $field);
+            $response->assertJsonPath("errors.$i.meta.rule", $field === 'payload' ? 'required_unless' : 'required');
+            $response->assertJsonPath("errors.$i.meta.source_field", $field);
         }
 
         $this->actingAs($user)->postJson($this->link($schedule, '/tasks'), [
@@ -89,25 +87,29 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
     }
 
     /**
-     * Test that backups can be tasked out correctly since they do not require a payload.
+     * Test that backups can not be tasked when the backup limit is 0.
      */
-    public function testBackupsCanBeTaskedCorrectly()
+    public function testBackupsCanNotBeTaskedIfLimit0()
     {
         [$user, $server] = $this->generateTestAccount();
 
-        /** @var \Pterodactyl\Models\Schedule $schedule */
-        $schedule = factory(Schedule::class)->create(['server_id' => $server->id]);
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
 
         $this->actingAs($user)->postJson($this->link($schedule, '/tasks'), [
             'action' => 'backup',
             'time_offset' => 0,
-        ])->assertOk();
+        ])
+            ->assertStatus(Response::HTTP_FORBIDDEN)
+            ->assertJsonPath('errors.0.detail', 'A backup task cannot be created when the server\'s backup limit is set to 0.');
 
         $this->actingAs($user)->postJson($this->link($schedule, '/tasks'), [
             'action' => 'backup',
             'payload' => "file.txt\nfile2.log",
             'time_offset' => 0,
-        ])->assertOk();
+        ])
+            ->assertStatus(Response::HTTP_FORBIDDEN)
+            ->assertJsonPath('errors.0.detail', 'A backup task cannot be created when the server\'s backup limit is set to 0.');
     }
 
     /**
@@ -120,9 +122,9 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
 
         [$user, $server] = $this->generateTestAccount();
 
-        /** @var \Pterodactyl\Models\Schedule $schedule */
-        $schedule = factory(Schedule::class)->create(['server_id' => $server->id]);
-        factory(Task::class)->times(2)->create(['schedule_id' => $schedule->id]);
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
+        Task::factory()->times(2)->create(['schedule_id' => $schedule->id]);
 
         $this->actingAs($user)->postJson($this->link($schedule, '/tasks'), [
             'action' => 'command',
@@ -141,13 +143,13 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
     public function testErrorIsReturnedIfScheduleDoesNotBelongToServer()
     {
         [$user, $server] = $this->generateTestAccount();
-        [, $server2] = $this->generateTestAccount(['user_id' => $user->id]);
+        $server2 = $this->createServerModel(['owner_id' => $user->id]);
 
-        /** @var \Pterodactyl\Models\Schedule $schedule */
-        $schedule = factory(Schedule::class)->create(['server_id' => $server2->id]);
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server2->id]);
 
         $this->actingAs($user)
-            ->postJson("/api/client/servers/{$server->uuid}/schedules/{$schedule->id}/tasks")
+            ->postJson("/api/client/servers/$server->uuid/schedules/$schedule->id/tasks")
             ->assertNotFound();
     }
 
@@ -159,18 +161,15 @@ class CreateServerScheduleTaskTest extends ClientApiIntegrationTestCase
     {
         [$user, $server] = $this->generateTestAccount([Permission::ACTION_SCHEDULE_CREATE]);
 
-        /** @var \Pterodactyl\Models\Schedule $schedule */
-        $schedule = factory(Schedule::class)->create(['server_id' => $server->id]);
+        /** @var Schedule $schedule */
+        $schedule = Schedule::factory()->create(['server_id' => $server->id]);
 
         $this->actingAs($user)
             ->postJson($this->link($schedule, '/tasks'))
             ->assertForbidden();
     }
 
-    /**
-     * @return array
-     */
-    public function permissionsDataProvider(): array
+    public static function permissionsDataProvider(): array
     {
         return [[[]], [[Permission::ACTION_SCHEDULE_UPDATE]]];
     }
